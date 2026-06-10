@@ -267,3 +267,145 @@ export function getContentPreview(content, maxLength = 100) {
   if (text.length <= maxLength) return text
   return text.substring(0, maxLength) + '...'
 }
+
+// ==================== 导入导出 ====================
+
+// 导出为 JSON 备份
+export function exportToJSON() {
+  const data = {
+    version: '1.0',
+    exportDate: new Date().toISOString(),
+    notes: getNotes(),
+    tags: getTags(),
+    settings: getSettings(),
+    stats: getStats(),
+  }
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `thinkgrid_backup_${new Date().toISOString().slice(0, 10)}.json`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
+// 导出为 Markdown
+export function exportToMarkdown() {
+  const notes = getNotes()
+  const tags = getTags()
+
+  let markdown = `# 思格笔记导出\n\n`
+  markdown += `> 导出时间：${new Date().toLocaleString('zh-CN')}\n\n`
+  markdown += `---\n\n`
+
+  notes.forEach((note, index) => {
+    markdown += `## ${index + 1}. ${note.title || '无标题'}\n\n`
+
+    if (note.tags && note.tags.length > 0) {
+      const tagNames = note.tags.map((tid) => {
+        const tag = tags.find((t) => t.id === tid)
+        return tag ? tag.name : ''
+      }).filter(Boolean)
+      if (tagNames.length > 0) {
+        markdown += `**标签**：${tagNames.join('、')}\n\n`
+      }
+    }
+
+    markdown += `**时间**：${new Date(note.createdAt).toLocaleString('zh-CN')}\n\n`
+    markdown += `${note.content || '暂无内容'}\n\n`
+    markdown += `---\n\n`
+  })
+
+  const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `thinkgrid_notes_${new Date().toISOString().slice(0, 10)}.md`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
+// 导出为纯文本
+export function exportToText() {
+  const notes = getNotes()
+  const tags = getTags()
+
+  let text = `思格笔记导出\n`
+  text += `导出时间：${new Date().toLocaleString('zh-CN')}\n`
+  text += `================================\n\n`
+
+  notes.forEach((note, index) => {
+    text += `[${index + 1}] ${note.title || '无标题'}\n`
+
+    if (note.tags && note.tags.length > 0) {
+      const tagNames = note.tags.map((tid) => {
+        const tag = tags.find((t) => t.id === tid)
+        return tag ? tag.name : ''
+      }).filter(Boolean)
+      if (tagNames.length > 0) {
+        text += `标签：${tagNames.join('、')}\n`
+      }
+    }
+
+    text += `时间：${new Date(note.createdAt).toLocaleString('zh-CN')}\n`
+    text += `--------------------------------\n`
+    text += `${note.content || '暂无内容'}\n\n`
+  })
+
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `thinkgrid_notes_${new Date().toISOString().slice(0, 10)}.txt`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
+// 从 JSON 导入
+export function importFromJSON(fileContent) {
+  try {
+    const data = JSON.parse(fileContent)
+
+    if (!data.notes || !Array.isArray(data.notes)) {
+      throw new Error('无效的备份文件格式')
+    }
+
+    // 合并笔记（避免重复ID）
+    const existingNotes = getNotes()
+    const existingIds = new Set(existingNotes.map((n) => n.id))
+    const newNotes = data.notes.filter((n) => !existingIds.has(n.id))
+
+    // 合并标签
+    if (data.tags && Array.isArray(data.tags)) {
+      const existingTags = getTags()
+      const existingTagIds = new Set(existingTags.map((t) => t.id))
+      const newTags = data.tags.filter((t) => !existingTagIds.has(t.id))
+      if (newTags.length > 0) {
+        saveTags([...existingTags, ...newTags])
+      }
+    }
+
+    // 保存笔记
+    if (newNotes.length > 0) {
+      saveNotes([...newNotes, ...existingNotes])
+    }
+
+    return {
+      success: true,
+      importedNotes: newNotes.length,
+      skippedNotes: data.notes.length - newNotes.length,
+    }
+  } catch (error) {
+    return { success: false, error: error.message }
+  }
+}
+
+function saveTags(tags) {
+  localStorage.setItem(STORAGE_KEYS.TAGS, JSON.stringify(tags))
+}

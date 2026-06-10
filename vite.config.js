@@ -7,7 +7,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'icon-192.svg', 'icon-512.svg'],
+      includeAssets: ['favicon.svg', 'icon-192.svg', 'icon-512.svg', 'logo.jpg'],
       manifest: {
         name: '思格 Think Grid',
         short_name: '思格',

@@ -1,18 +1,23 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getStats, getSettings, saveSettings, getNotes, getTags } from '../services/storage.js'
-import { isAIConfigured, getAIProviderName } from '../services/ai.js'
+import { getStats, getSettings, saveSettings, getNotes, getTags, exportToJSON, exportToMarkdown, exportToText, importFromJSON } from '../services/storage.js'
+import { isAIConfigured, getAIProviderName, testAPIConnection } from '../services/ai.js'
 
 export default function Profile() {
   const navigate = useNavigate()
+  const fileInputRef = useRef(null)
   const [stats, setStats] = useState({ noteCount: 0, tagCount: 0, daysUsed: 1 })
   const [settings, setSettings] = useState(getSettings())
   const [showSettings, setShowSettings] = useState(false)
+  const [showDataManage, setShowDataManage] = useState(false)
   const [tempDeepseekKey, setTempDeepseekKey] = useState('')
   const [tempQwenKey, setTempQwenKey] = useState('')
   const [tempZhipuKey, setTempZhipuKey] = useState('')
   const [tempUserName, setTempUserName] = useState('')
   const [tempUserBio, setTempUserBio] = useState('')
+  const [testStatus, setTestStatus] = useState(null)
+  const [testing, setTesting] = useState(false)
+  const [importStatus, setImportStatus] = useState(null)
 
   useEffect(() => {
     loadData()
@@ -48,18 +53,57 @@ export default function Profile() {
     saveSettings(newSettings)
     setSettings(newSettings)
     setShowSettings(false)
+    setTestStatus(null)
   }
 
   const handleSwitchProvider = (provider) => {
     const newSettings = { ...settings, aiProvider: provider }
     saveSettings(newSettings)
     setSettings(newSettings)
+    setTestStatus(null)
+  }
+
+  const handleTestAPI = async () => {
+    setTesting(true)
+    setTestStatus(null)
+    try {
+      const result = await testAPIConnection()
+      setTestStatus({ type: 'success', message: result.message })
+    } catch (error) {
+      setTestStatus({ type: 'error', message: error.message })
+    } finally {
+      setTesting(false)
+    }
+  }
+
+  const handleExport = (format) => {
+    if (format === 'json') exportToJSON()
+    else if (format === 'md') exportToMarkdown()
+    else if (format === 'txt') exportToText()
+  }
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const result = importFromJSON(event.target.result)
+      if (result.success) {
+        setImportStatus({ type: 'success', message: `导入成功！新增 ${result.importedNotes} 条笔记，跳过 ${result.skippedNotes} 条重复笔记` })
+        loadData()
+      } else {
+        setImportStatus({ type: 'error', message: `导入失败：${result.error}` })
+      }
+    }
+    reader.readAsText(file)
+    e.target.value = ''
   }
 
   return (
     <div className="min-h-full bg-dark-bg">
       {/* 顶部 */}
-      <header className="px-5 pt-14 pb-4">
+      <header className="px-5 pt-4 pb-4">
         <h1 className="text-text-primary text-2xl font-bold">我的</h1>
       </header>
 
@@ -67,8 +111,8 @@ export default function Profile() {
         {/* 用户信息卡片 */}
         <div className="bg-dark-card rounded-2xl p-5 mb-4 border border-dark-border/50">
           <div className="flex items-center gap-4 mb-4">
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-coral-light to-coral-dark flex items-center justify-center text-3xl">
-              👤
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-coral-light to-coral-dark flex items-center justify-center text-3xl overflow-hidden">
+              <img src="/logo.jpg" alt="思格" className="w-full h-full object-cover" />
             </div>
             <div className="flex-1">
               <h2 className="text-text-primary font-semibold text-lg">{settings.userName || '思格用户'}</h2>
@@ -114,122 +158,19 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* 设置弹窗 */}
-        {showSettings && (
-          <div className="fixed inset-0 bg-black/60 flex items-end justify-center z-50" onClick={() => setShowSettings(false)}>
-            <div className="bg-dark-card rounded-t-3xl w-full max-w-md p-6 animate-fade-in max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-              <h3 className="text-text-primary font-semibold text-lg mb-5">设置</h3>
-
-              {/* 用户信息设置 */}
-              <div className="mb-5">
-                <label className="text-text-secondary text-xs mb-1.5 block">用户名</label>
-                <input
-                  type="text"
-                  value={tempUserName}
-                  onChange={(e) => setTempUserName(e.target.value)}
-                  className="w-full bg-[#0F0F0F] rounded-xl px-4 py-2.5 text-sm text-text-primary outline-none border border-dark-border/50 focus:border-coral-light/50"
-                />
-              </div>
-              <div className="mb-5">
-                <label className="text-text-secondary text-xs mb-1.5 block">个人简介</label>
-                <input
-                  type="text"
-                  value={tempUserBio}
-                  onChange={(e) => setTempUserBio(e.target.value)}
-                  className="w-full bg-[#0F0F0F] rounded-xl px-4 py-2.5 text-sm text-text-primary outline-none border border-dark-border/50 focus:border-coral-light/50"
-                />
-              </div>
-
-              {/* AI 提供商选择 */}
-              <div className="mb-5">
-                <label className="text-text-secondary text-xs mb-2 block">AI 提供商</label>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleSwitchProvider('deepseek')}
-                    className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                      settings.aiProvider === 'deepseek'
-                        ? 'bg-coral-gradient text-white'
-                        : 'bg-[#0F0F0F] text-text-secondary border border-dark-border/50'
-                    }`}
-                  >
-                    DeepSeek
-                  </button>
-                  <button
-                    onClick={() => handleSwitchProvider('qwen')}
-                    className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                      settings.aiProvider === 'qwen'
-                        ? 'bg-coral-gradient text-white'
-                        : 'bg-[#0F0F0F] text-text-secondary border border-dark-border/50'
-                    }`}
-                  >
-                    通义千问
-                  </button>
-                  <button
-                    onClick={() => handleSwitchProvider('zhipu')}
-                    className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                      settings.aiProvider === 'zhipu'
-                        ? 'bg-coral-gradient text-white'
-                        : 'bg-[#0F0F0F] text-text-secondary border border-dark-border/50'
-                    }`}
-                  >
-                    智谱 GLM
-                  </button>
-                </div>
-              </div>
-
-              {/* API Key 设置 */}
-              <div className="mb-4">
-                <label className="text-text-secondary text-xs mb-1.5 block">
-                  {settings.aiProvider === 'deepseek' ? 'DeepSeek' : settings.aiProvider === 'qwen' ? '通义千问' : '智谱 GLM'} API Key
-                </label>
-                <input
-                  type="password"
-                  value={
-                    settings.aiProvider === 'deepseek'
-                      ? tempDeepseekKey
-                      : settings.aiProvider === 'qwen'
-                        ? tempQwenKey
-                        : tempZhipuKey
-                  }
-                  onChange={(e) => {
-                    if (settings.aiProvider === 'deepseek') {
-                      setTempDeepseekKey(e.target.value)
-                    } else if (settings.aiProvider === 'qwen') {
-                      setTempQwenKey(e.target.value)
-                    } else {
-                      setTempZhipuKey(e.target.value)
-                    }
-                  }}
-                  placeholder={`输入 ${settings.aiProvider === 'deepseek' ? 'DeepSeek' : settings.aiProvider === 'qwen' ? '通义千问' : '智谱 GLM'} API Key`}
-                  className="w-full bg-[#0F0F0F] rounded-xl px-4 py-2.5 text-sm text-text-primary outline-none border border-dark-border/50 focus:border-coral-light/50"
-                />
-                <p className="text-text-secondary/40 text-[10px] mt-1">
-                  {settings.aiProvider === 'deepseek'
-                    ? '在 https://platform.deepseek.com 获取'
-                    : settings.aiProvider === 'qwen'
-                      ? '在 https://dashscope.aliyun.com 获取'
-                      : '在 https://open.bigmodel.cn 获取'}
-                </p>
-              </div>
-
-              {/* 保存按钮 */}
-              <div className="flex gap-3 mt-6">
-                <button
-                  onClick={() => setShowSettings(false)}
-                  className="flex-1 py-3 rounded-xl bg-dark-border/30 text-text-primary font-medium text-sm"
-                >
-                  取消
-                </button>
-                <button
-                  onClick={handleSaveSettings}
-                  className="flex-1 py-3 rounded-xl bg-coral-gradient text-white font-medium text-sm"
-                >
-                  保存
-                </button>
-              </div>
+        {/* 数据管理 */}
+        <div className="bg-dark-card rounded-2xl mb-4 border border-dark-border/50 overflow-hidden">
+          <button
+            onClick={() => setShowDataManage(true)}
+            className="w-full px-5 py-4 flex items-center justify-between hover:bg-[#222222] transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <span>💾</span>
+              <span className="text-text-primary text-sm">数据管理</span>
             </div>
-          </div>
-        )}
+            <span className="text-text-secondary/40 text-sm">→</span>
+          </button>
+        </div>
 
         {/* 其他菜单项 */}
         <div className="bg-dark-card rounded-2xl border border-dark-border/50 overflow-hidden">
@@ -247,10 +188,214 @@ export default function Profile() {
 
         {/* 底部说明 */}
         <div className="mt-8 mb-4 text-center">
-          <p className="text-text-secondary/30 text-xs">思格 Think Grid v1.0</p>
-          <p className="text-text-secondary/20 text-[10px] mt-1">PWA 笔记应用 · 本地存储</p>
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <img src="/logo.jpg" alt="思格" className="w-8 h-8 rounded-lg object-cover" />
+            <p className="text-text-secondary/30 text-xs">思格 Think Grid v1.0</p>
+          </div>
+          <p className="text-text-secondary/20 text-[10px]">PWA 笔记应用 · 本地存储</p>
         </div>
       </div>
+
+      {/* 设置弹窗 */}
+      {showSettings && (
+        <div className="fixed inset-0 bg-black/60 flex items-end justify-center z-50" onClick={() => setShowSettings(false)}>
+          <div className="bg-dark-card rounded-t-3xl w-full max-w-md p-6 animate-fade-in max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-text-primary font-semibold text-lg mb-5">AI 设置</h3>
+
+            {/* AI 提供商选择 */}
+            <div className="mb-5">
+              <label className="text-text-secondary text-xs mb-2 block">AI 提供商</label>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleSwitchProvider('deepseek')}
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                    settings.aiProvider === 'deepseek'
+                      ? 'bg-coral-gradient text-white'
+                      : 'bg-[#0F0F0F] text-text-secondary border border-dark-border/50'
+                  }`}
+                >
+                  DeepSeek
+                </button>
+                <button
+                  onClick={() => handleSwitchProvider('qwen')}
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                    settings.aiProvider === 'qwen'
+                      ? 'bg-coral-gradient text-white'
+                      : 'bg-[#0F0F0F] text-text-secondary border border-dark-border/50'
+                  }`}
+                >
+                  通义千问
+                </button>
+                <button
+                  onClick={() => handleSwitchProvider('zhipu')}
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                    settings.aiProvider === 'zhipu'
+                      ? 'bg-coral-gradient text-white'
+                      : 'bg-[#0F0F0F] text-text-secondary border border-dark-border/50'
+                  }`}
+                >
+                  智谱 GLM
+                </button>
+              </div>
+            </div>
+
+            {/* API Key 设置 */}
+            <div className="mb-4">
+              <label className="text-text-secondary text-xs mb-1.5 block">
+                {settings.aiProvider === 'deepseek' ? 'DeepSeek' : settings.aiProvider === 'qwen' ? '通义千问' : '智谱 GLM'} API Key
+              </label>
+              <div className="relative">
+                <input
+                  type="password"
+                  value={
+                    settings.aiProvider === 'deepseek'
+                      ? tempDeepseekKey
+                      : settings.aiProvider === 'qwen'
+                        ? tempQwenKey
+                        : tempZhipuKey
+                  }
+                  onChange={(e) => {
+                    if (settings.aiProvider === 'deepseek') {
+                      setTempDeepseekKey(e.target.value)
+                    } else if (settings.aiProvider === 'qwen') {
+                      setTempQwenKey(e.target.value)
+                    } else {
+                      setTempZhipuKey(e.target.value)
+                    }
+                    setTestStatus(null)
+                  }}
+                  placeholder={`输入 ${settings.aiProvider === 'deepseek' ? 'DeepSeek' : settings.aiProvider === 'qwen' ? '通义千问' : '智谱 GLM'} API Key`}
+                  className="w-full bg-[#0F0F0F] rounded-xl px-4 py-2.5 text-sm text-text-primary outline-none border border-dark-border/50 focus:border-coral-light/50 pr-10"
+                />
+              </div>
+              <p className="text-text-secondary/40 text-[10px] mt-1">
+                {settings.aiProvider === 'deepseek'
+                  ? '在 https://platform.deepseek.com 获取'
+                  : settings.aiProvider === 'qwen'
+                    ? '在 https://dashscope.aliyun.com 获取'
+                    : '在 https://open.bigmodel.cn 获取'}
+              </p>
+            </div>
+
+            {/* 测试连接按钮 */}
+            <button
+              onClick={handleTestAPI}
+              disabled={testing}
+              className="w-full py-3 rounded-xl bg-[#1A3A2F] text-[#4ADE80] font-medium text-sm border border-[#4ADE80]/30 hover:border-[#4ADE80]/50 transition-all disabled:opacity-50 mb-3 flex items-center justify-center gap-2"
+            >
+              {testing ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-[#4ADE80]/30 border-t-[#4ADE80] rounded-full animate-spin" />
+                  测试中...
+                </>
+              ) : (
+                <>
+                  <span>🔌</span> 测试 API 连接
+                </>
+              )}
+            </button>
+
+            {/* 测试结果 */}
+            {testStatus && (
+              <div className={`rounded-xl p-3 mb-4 text-xs ${
+                testStatus.type === 'success'
+                  ? 'bg-[#1A3A2F] text-[#4ADE80] border border-[#4ADE80]/20'
+                  : 'bg-[#3A1A1A] text-red-400 border border-red-400/20'
+              }`}>
+                {testStatus.type === 'success' ? '✅ ' : '❌ '}{testStatus.message}
+              </div>
+            )}
+
+            {/* 保存按钮 */}
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowSettings(false)}
+                className="flex-1 py-3 rounded-xl bg-dark-border/30 text-text-primary font-medium text-sm"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleSaveSettings}
+                className="flex-1 py-3 rounded-xl bg-coral-gradient text-white font-medium text-sm"
+              >
+                保存
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 数据管理弹窗 */}
+      {showDataManage && (
+        <div className="fixed inset-0 bg-black/60 flex items-end justify-center z-50" onClick={() => setShowDataManage(false)}>
+          <div className="bg-dark-card rounded-t-3xl w-full max-w-md p-6 animate-fade-in max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-text-primary font-semibold text-lg mb-5">数据管理</h3>
+
+            {/* 导出数据 */}
+            <div className="mb-6">
+              <label className="text-text-secondary text-xs mb-2 block">导出数据</label>
+              <div className="space-y-2">
+                <button
+                  onClick={() => handleExport('json')}
+                  className="w-full py-3 rounded-xl bg-[#0F0F0F] text-text-primary text-sm font-medium border border-dark-border/50 hover:border-coral-light/30 transition-all flex items-center justify-center gap-2"
+                >
+                  <span>📦</span> 导出完整备份 (JSON)
+                </button>
+                <button
+                  onClick={() => handleExport('md')}
+                  className="w-full py-3 rounded-xl bg-[#0F0F0F] text-text-primary text-sm font-medium border border-dark-border/50 hover:border-coral-light/30 transition-all flex items-center justify-center gap-2"
+                >
+                  <span>📝</span> 导出为 Markdown
+                </button>
+                <button
+                  onClick={() => handleExport('txt')}
+                  className="w-full py-3 rounded-xl bg-[#0F0F0F] text-text-primary text-sm font-medium border border-dark-border/50 hover:border-coral-light/30 transition-all flex items-center justify-center gap-2"
+                >
+                  <span>📄</span> 导出为纯文本
+                </button>
+              </div>
+            </div>
+
+            {/* 导入数据 */}
+            <div className="mb-4">
+              <label className="text-text-secondary text-xs mb-2 block">导入数据</label>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full py-3 rounded-xl bg-[#0F0F0F] text-text-primary text-sm font-medium border border-dark-border/50 hover:border-coral-light/30 transition-all flex items-center justify-center gap-2"
+              >
+                <span>📥</span> 从 JSON 备份导入
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+              <p className="text-text-secondary/40 text-[10px] mt-1">支持导入之前导出的 JSON 备份文件</p>
+            </div>
+
+            {/* 导入结果 */}
+            {importStatus && (
+              <div className={`rounded-xl p-3 mb-4 text-xs ${
+                importStatus.type === 'success'
+                  ? 'bg-[#1A3A2F] text-[#4ADE80] border border-[#4ADE80]/20'
+                  : 'bg-[#3A1A1A] text-red-400 border border-red-400/20'
+              }`}>
+                {importStatus.type === 'success' ? '✅ ' : '❌ '}{importStatus.message}
+              </div>
+            )}
+
+            {/* 关闭按钮 */}
+            <button
+              onClick={() => setShowDataManage(false)}
+              className="w-full py-3 rounded-xl bg-dark-border/30 text-text-primary font-medium text-sm mt-2"
+            >
+              关闭
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

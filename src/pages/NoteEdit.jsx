@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getNoteById, saveNote, getTags, getTagName } from '../services/storage.js'
+import { generateTitle, isAIConfigured } from '../services/ai.js'
 
 export default function NoteEdit() {
   const navigate = useNavigate()
@@ -13,6 +14,7 @@ export default function NoteEdit() {
   const [allTags, setAllTags] = useState([])
   const [showTagSelector, setShowTagSelector] = useState(false)
   const [newTagName, setNewTagName] = useState('')
+  const [generatingTitle, setGeneratingTitle] = useState(false)
 
   useEffect(() => {
     setAllTags(getTags())
@@ -45,6 +47,27 @@ export default function NoteEdit() {
     navigate('/', { replace: true })
   }
 
+  const handleGenerateTitle = async () => {
+    if (!content.trim()) {
+      alert('请先输入笔记内容')
+      return
+    }
+    if (!isAIConfigured()) {
+      alert('请先在设置中配置 AI API Key')
+      return
+    }
+
+    setGeneratingTitle(true)
+    try {
+      const generatedTitle = await generateTitle(content)
+      setTitle(generatedTitle)
+    } catch (error) {
+      alert('生成标题失败：' + error.message)
+    } finally {
+      setGeneratingTitle(false)
+    }
+  }
+
   const toggleTag = (tagId) => {
     setSelectedTags((prev) =>
       prev.includes(tagId)
@@ -59,7 +82,6 @@ export default function NoteEdit() {
     const colors = ['#E8845F', '#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EC4899']
     const randomColor = colors[Math.floor(Math.random() * colors.length)]
 
-    // 这里需要导入 addTag，但由于是组件内，我们直接操作
     const newTag = { id: 'tag_' + Date.now(), name: newTagName.trim(), color: randomColor }
     const updatedTags = [...allTags, newTag]
     localStorage.setItem('thinkgrid_tags', JSON.stringify(updatedTags))
@@ -71,7 +93,7 @@ export default function NoteEdit() {
   return (
     <div className="min-h-full bg-dark-bg">
       {/* 顶部导航 */}
-      <header className="flex items-center justify-between px-4 pt-14 pb-3">
+      <header className="flex items-center justify-between px-4 pt-4 pb-3">
         <button
           onClick={() => navigate(-1)}
           className="text-text-secondary hover:text-text-primary transition-colors p-2 -ml-2"
@@ -92,13 +114,31 @@ export default function NoteEdit() {
       {/* 编辑区域 */}
       <div className="px-5">
         {/* 标题输入 */}
-        <input
-          type="text"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="标题"
-          className="w-full bg-transparent text-text-primary text-xl font-semibold placeholder-text-secondary/30 outline-none mb-4 py-2"
-        />
+        <div className="flex items-center gap-2 mb-4">
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="标题"
+            className="flex-1 bg-transparent text-text-primary text-xl font-semibold placeholder-text-secondary/30 outline-none py-2"
+          />
+          <button
+            onClick={handleGenerateTitle}
+            disabled={generatingTitle}
+            className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-[#1A1A1A] text-coral-light text-xs font-medium border border-dark-border/50 hover:border-coral-light/30 transition-all disabled:opacity-50 flex items-center gap-1"
+          >
+            {generatingTitle ? (
+              <>
+                <span className="w-3 h-3 border-2 border-coral-light/30 border-t-coral-light rounded-full animate-spin" />
+                生成中
+              </>
+            ) : (
+              <>
+                <span>✨</span> AI 生成标题
+              </>
+            )}
+          </button>
+        </div>
 
         {/* 标签选择 */}
         <div className="mb-4">

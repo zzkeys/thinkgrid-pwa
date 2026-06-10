@@ -38,7 +38,7 @@ export default function Tags() {
   return (
     <div className="min-h-full bg-dark-bg">
       {/* 顶部导航 */}
-      <header className="flex items-center justify-between px-4 pt-14 pb-3">
+      <header className="flex items-center justify-between px-4 pt-4 pb-3">
         <button
           onClick={() => navigate(-1)}
           className="text-text-secondary hover:text-text-primary transition-colors p-2 -ml-2"

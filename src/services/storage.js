@@ -405,7 +405,3 @@ export function importFromJSON(fileContent) {
     return { success: false, error: error.message }
   }
 }
-
-function saveTags(tags) {
-  localStorage.setItem(STORAGE_KEYS.TAGS, JSON.stringify(tags))
-}

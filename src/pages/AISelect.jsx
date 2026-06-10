@@ -3,10 +3,34 @@ import { useNavigate } from 'react-router-dom'
 import { getNotes } from '../services/storage.js'
 import { isAIConfigured } from '../services/ai.js'
 
+const TIME_FILTERS = [
+  { key: 'all', label: '全部' },
+  { key: 'today', label: '今天' },
+  { key: 'week', label: '最近7天' },
+  { key: 'month', label: '最近30天' },
+]
+
+function getFilterTimestamp(key) {
+  const now = new Date()
+  switch (key) {
+    case 'today':
+      return new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+    case 'week':
+      return now.getTime() - 7 * 24 * 60 * 60 * 1000
+    case 'month':
+      return now.getTime() - 30 * 24 * 60 * 60 * 1000
+    default:
+      return 0
+  }
+}
+
 export default function AISelect() {
   const navigate = useNavigate()
-  const [notes, setNotes] = useState([])
+  const [allNotes, setAllNotes] = useState([])
+  const [filteredNotes, setFilteredNotes] = useState([])
   const [selectedIds, setSelectedIds] = useState([])
+  const [timeFilter, setTimeFilter] = useState('all')
+  const [selectAll, setSelectAll] = useState(false)
 
   useEffect(() => {
     if (!isAIConfigured()) {
@@ -14,20 +38,36 @@ export default function AISelect() {
       navigate('/profile', { replace: true })
       return
     }
-    setNotes(getNotes())
+    const notes = getNotes()
+    setAllNotes(notes)
+    setFilteredNotes(notes)
   }, [navigate])
+
+  useEffect(() => {
+    const cutoff = getFilterTimestamp(timeFilter)
+    const filtered = allNotes.filter((n) => new Date(n.createdAt).getTime() >= cutoff)
+    setFilteredNotes(filtered)
+    // 清除已选中但不在筛选结果中的笔记
+    setSelectedIds((prev) => prev.filter((id) => filtered.some((n) => n.id === id)))
+    setSelectAll(false)
+  }, [timeFilter, allNotes])
 
   const toggleSelect = (id) => {
     setSelectedIds((prev) => {
       if (prev.includes(id)) {
         return prev.filter((i) => i !== id)
       }
-      if (prev.length >= 3) {
-        alert('最多选择 3 条笔记')
-        return prev
-      }
       return [...prev, id]
     })
+  }
+
+  const handleSelectAll = () => {
+    if (selectAll) {
+      setSelectedIds([])
+    } else {
+      setSelectedIds(filteredNotes.map((n) => n.id))
+    }
+    setSelectAll(!selectAll)
   }
 
   const handleGenerate = () => {
@@ -35,7 +75,6 @@ export default function AISelect() {
       alert('请至少选择 1 条笔记')
       return
     }
-    // 将选中的笔记 ID 传递到结果页
     navigate('/ai/result', { state: { selectedIds } })
   }
 
@@ -49,7 +88,7 @@ export default function AISelect() {
         >
           <span className="text-xl">←</span>
         </button>
-        <h1 className="text-text-primary font-semibold text-base">选择笔记</h1>
+        <h1 className="text-text-primary font-semibold text-base">AI 洞察</h1>
         <div className="w-10" />
       </header>
 
@@ -57,30 +96,69 @@ export default function AISelect() {
         {/* 提示 */}
         <div className="bg-dark-card/60 rounded-2xl p-4 mb-4 border border-dark-border/50">
           <p className="text-text-secondary/80 text-sm">
-            选择 <span className="text-coral-light font-medium">1-3 条</span> 笔记，AI 将为你生成深度洞察。
+            选择笔记，AI 将为你生成深度洞察。
           </p>
           <p className="text-text-secondary/40 text-xs mt-1.5">
-            已选择 {selectedIds.length}/3 条
+            已选择 {selectedIds.length} 条 / 共 {filteredNotes.length} 条
           </p>
         </div>
 
+        {/* 时间筛选 */}
+        <div className="mb-4">
+          <label className="text-text-secondary text-xs mb-2 block">时间范围</label>
+          <div className="flex gap-2">
+            {TIME_FILTERS.map((f) => (
+              <button
+                key={f.key}
+                onClick={() => setTimeFilter(f.key)}
+                className={`flex-1 py-2 rounded-xl text-xs font-medium transition-all ${
+                  timeFilter === f.key
+                    ? 'bg-coral-gradient text-white'
+                    : 'bg-[#0F0F0F] text-text-secondary border border-dark-border/50'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 全选按钮 */}
+        {filteredNotes.length > 0 && (
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-text-secondary/60 text-xs">{filteredNotes.length} 条笔记</span>
+            <button
+              onClick={handleSelectAll}
+              className="text-coral-light text-xs font-medium"
+            >
+              {selectAll ? '取消全选' : '全选'}
+            </button>
+          </div>
+        )}
+
         {/* 笔记列表 */}
-        {notes.length === 0 ? (
+        {filteredNotes.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16">
             <span className="text-4xl mb-3">📝</span>
-            <p className="text-text-secondary/60 text-sm">还没有笔记</p>
+            <p className="text-text-secondary/60 text-sm">该时间段没有笔记</p>
             <button
               onClick={() => navigate('/note/new')}
               className="mt-4 text-coral-light text-sm font-medium"
             >
-              + 写第一篇笔记
+              + 写一篇笔记
             </button>
           </div>
         ) : (
           <>
             <div className="space-y-2 mb-4">
-              {notes.map((note) => {
+              {filteredNotes.map((note) => {
                 const isSelected = selectedIds.includes(note.id)
+                const dateStr = new Date(note.createdAt).toLocaleDateString('zh-CN', {
+                  month: 'short',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
                 return (
                   <div
                     key={note.id}
@@ -102,9 +180,12 @@ export default function AISelect() {
 
                     {/* 笔记信息 */}
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-text-primary text-sm font-medium line-clamp-1 mb-0.5">
-                        {note.title || '无标题'}
-                      </h3>
+                      <div className="flex items-center justify-between mb-0.5">
+                        <h3 className="text-text-primary text-sm font-medium line-clamp-1 flex-1">
+                          {note.title || '无标题'}
+                        </h3>
+                        <span className="text-text-secondary/30 text-[10px] ml-2 flex-shrink-0">{dateStr}</span>
+                      </div>
                       <p className="text-text-secondary/60 text-xs line-clamp-1">
                         {note.content || '暂无内容'}
                       </p>

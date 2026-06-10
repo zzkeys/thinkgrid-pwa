@@ -212,14 +212,15 @@ export function getAIProviderName() {
 }
 
 // 测试 API 连接
-export async function testAPIConnection() {
+// overrideKey: 可选，用于测试临时输入的 API Key（未保存时）
+export async function testAPIConnection(overrideKey) {
   const settings = getSettings()
   const provider = settings.aiProvider || 'deepseek'
-  const apiKey = provider === 'deepseek'
+  const apiKey = overrideKey || (provider === 'deepseek'
     ? settings.deepseekApiKey
     : provider === 'zhipu'
       ? settings.zhipuApiKey
-      : settings.qwenApiKey
+      : settings.qwenApiKey)
 
   if (!apiKey) {
     throw new Error(`请先在设置中配置 ${AI_PROVIDERS[provider].name} 的 API Key`)

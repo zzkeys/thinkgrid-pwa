@@ -18,6 +18,7 @@ export default function Profile() {
   const [testStatus, setTestStatus] = useState(null)
   const [testing, setTesting] = useState(false)
   const [importStatus, setImportStatus] = useState(null)
+  const [showKey, setShowKey] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -67,7 +68,13 @@ export default function Profile() {
     setTesting(true)
     setTestStatus(null)
     try {
-      const result = await testAPIConnection()
+      // 获取当前临时输入的 API Key 进行测试
+      const currentKey = settings.aiProvider === 'deepseek'
+        ? tempDeepseekKey
+        : settings.aiProvider === 'qwen'
+          ? tempQwenKey
+          : tempZhipuKey
+      const result = await testAPIConnection(currentKey.trim() || undefined)
       setTestStatus({ type: 'success', message: result.message })
     } catch (error) {
       setTestStatus({ type: 'error', message: error.message })
@@ -112,7 +119,7 @@ export default function Profile() {
         <div className="bg-dark-card rounded-2xl p-5 mb-4 border border-dark-border/50">
           <div className="flex items-center gap-4 mb-4">
             <div className="w-16 h-16 rounded-full bg-gradient-to-br from-coral-light to-coral-dark flex items-center justify-center text-3xl overflow-hidden">
-              <img src="/logo.jpg" alt="思格" className="w-full h-full object-cover" />
+              <img src="/logo.png" alt="思格" className="w-full h-full object-cover" />
             </div>
             <div className="flex-1">
               <h2 className="text-text-primary font-semibold text-lg">{settings.userName || '思格用户'}</h2>
@@ -189,7 +196,7 @@ export default function Profile() {
         {/* 底部说明 */}
         <div className="mt-8 mb-4 text-center">
           <div className="flex items-center justify-center gap-2 mb-2">
-            <img src="/logo.jpg" alt="思格" className="w-8 h-8 rounded-lg object-cover" />
+            <img src="/logo.png" alt="思格" className="w-8 h-8 rounded-lg object-cover" />
             <p className="text-text-secondary/30 text-xs">思格 Think Grid v1.0</p>
           </div>
           <p className="text-text-secondary/20 text-[10px]">PWA 笔记应用 · 本地存储</p>
@@ -239,42 +246,53 @@ export default function Profile() {
               </div>
             </div>
 
-            {/* API Key 设置 */}
-            <div className="mb-4">
-              <label className="text-text-secondary text-xs mb-1.5 block">
-                {settings.aiProvider === 'deepseek' ? 'DeepSeek' : settings.aiProvider === 'qwen' ? '通义千问' : '智谱 GLM'} API Key
-              </label>
-              <div className="relative">
-                <input
-                  type="password"
-                  value={
-                    settings.aiProvider === 'deepseek'
-                      ? tempDeepseekKey
-                      : settings.aiProvider === 'qwen'
-                        ? tempQwenKey
-                        : tempZhipuKey
-                  }
-                  onChange={(e) => {
-                    if (settings.aiProvider === 'deepseek') {
-                      setTempDeepseekKey(e.target.value)
-                    } else if (settings.aiProvider === 'qwen') {
-                      setTempQwenKey(e.target.value)
-                    } else {
-                      setTempZhipuKey(e.target.value)
+            {/* API 配置区域 */}
+            <div className="mb-5 bg-[#0F0F0F]/40 rounded-2xl p-4 border border-dark-border/30">
+              <label className="text-text-secondary text-xs mb-2 block">API 配置</label>
+
+              {/* API Key 输入 */}
+              <div className="mb-3">
+                <label className="text-text-secondary/60 text-[10px] mb-1 block">
+                  {settings.aiProvider === 'deepseek' ? 'DeepSeek' : settings.aiProvider === 'qwen' ? '通义千问' : '智谱 GLM'} API Key
+                </label>
+                <div className="relative">
+                  <input
+                    type={showKey ? 'text' : 'password'}
+                    value={
+                      settings.aiProvider === 'deepseek'
+                        ? tempDeepseekKey
+                        : settings.aiProvider === 'qwen'
+                          ? tempQwenKey
+                          : tempZhipuKey
                     }
-                    setTestStatus(null)
-                  }}
-                  placeholder={`输入 ${settings.aiProvider === 'deepseek' ? 'DeepSeek' : settings.aiProvider === 'qwen' ? '通义千问' : '智谱 GLM'} API Key`}
-                  className="w-full bg-[#0F0F0F] rounded-xl px-4 py-2.5 text-sm text-text-primary outline-none border border-dark-border/50 focus:border-coral-light/50 pr-10"
-                />
+                    onChange={(e) => {
+                      if (settings.aiProvider === 'deepseek') {
+                        setTempDeepseekKey(e.target.value)
+                      } else if (settings.aiProvider === 'qwen') {
+                        setTempQwenKey(e.target.value)
+                      } else {
+                        setTempZhipuKey(e.target.value)
+                      }
+                      setTestStatus(null)
+                    }}
+                    placeholder={`输入 API Key`}
+                    className="w-full bg-[#0F0F0F] rounded-xl px-4 py-2.5 text-sm text-text-primary outline-none border border-dark-border/50 focus:border-coral-light/50 pr-12"
+                  />
+                  <button
+                    onClick={() => setShowKey(!showKey)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary/50 hover:text-text-secondary text-xs"
+                  >
+                    {showKey ? '🙈' : '👁️'}
+                  </button>
+                </div>
+                <p className="text-text-secondary/30 text-[10px] mt-1">
+                  {settings.aiProvider === 'deepseek'
+                    ? '在 platform.deepseek.com 获取'
+                    : settings.aiProvider === 'qwen'
+                      ? '在 dashscope.aliyun.com 获取'
+                      : '在 open.bigmodel.cn 获取'}
+                </p>
               </div>
-              <p className="text-text-secondary/40 text-[10px] mt-1">
-                {settings.aiProvider === 'deepseek'
-                  ? '在 https://platform.deepseek.com 获取'
-                  : settings.aiProvider === 'qwen'
-                    ? '在 https://dashscope.aliyun.com 获取'
-                    : '在 https://open.bigmodel.cn 获取'}
-              </p>
             </div>
 
             {/* 测试连接按钮 */}
@@ -306,8 +324,15 @@ export default function Profile() {
               </div>
             )}
 
+            {/* 温馨提示 */}
+            <div className="bg-[#0F0F0F]/40 rounded-xl p-3 mb-5 border border-dark-border/30">
+              <p className="text-text-secondary/50 text-[10px] leading-relaxed">
+                💡 API Key 仅存储在本地，不会上传至任何服务器
+              </p>
+            </div>
+
             {/* 保存按钮 */}
-            <div className="flex gap-3 mt-6">
+            <div className="flex gap-3">
               <button
                 onClick={() => setShowSettings(false)}
                 className="flex-1 py-3 rounded-xl bg-dark-border/30 text-text-primary font-medium text-sm"

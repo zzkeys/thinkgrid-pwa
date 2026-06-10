@@ -118,7 +118,7 @@ export default function Profile() {
         {/* 用户信息卡片 */}
         <div className="bg-dark-card rounded-2xl p-5 mb-4 border border-dark-border/50">
           <div className="flex items-center gap-4 mb-4">
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-coral-light to-coral-dark flex items-center justify-center text-3xl overflow-hidden">
+            <div className="w-16 h-16 rounded-2xl overflow-hidden shadow-lg shadow-black/30 ring-2 ring-dark-border/30">
               <img src="/logo.png" alt="思格" className="w-full h-full object-cover" />
             </div>
             <div className="flex-1">
@@ -196,7 +196,9 @@ export default function Profile() {
         {/* 底部说明 */}
         <div className="mt-8 mb-4 text-center">
           <div className="flex items-center justify-center gap-2 mb-2">
-            <img src="/logo.png" alt="思格" className="w-8 h-8 rounded-lg object-cover" />
+            <div className="w-8 h-8 rounded-lg overflow-hidden shadow-md shadow-black/20">
+              <img src="/logo.png" alt="思格" className="w-full h-full object-cover" />
+            </div>
             <p className="text-text-secondary/30 text-xs">思格 Think Grid v1.0</p>
           </div>
           <p className="text-text-secondary/20 text-[10px]">PWA 笔记应用 · 本地存储</p>
@@ -205,40 +207,49 @@ export default function Profile() {
 
       {/* 设置弹窗 */}
       {showSettings && (
-        <div className="fixed inset-0 bg-black/60 flex items-end justify-center z-50" onClick={() => setShowSettings(false)}>
-          <div className="bg-dark-card rounded-t-3xl w-full max-w-md p-6 animate-fade-in max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-text-primary font-semibold text-lg mb-5">AI 设置</h3>
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setShowSettings(false)}>
+          <div className="bg-dark-card rounded-3xl w-full max-w-md p-6 animate-fade-in max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            {/* 顶部标题栏 */}
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-text-primary font-semibold text-lg">AI 设置</h3>
+              <button
+                onClick={() => setShowSettings(false)}
+                className="w-8 h-8 rounded-full bg-[#0F0F0F] flex items-center justify-center text-text-secondary hover:text-text-primary transition-colors"
+              >
+                ✕
+              </button>
+            </div>
 
             {/* AI 提供商选择 */}
-            <div className="mb-5">
-              <label className="text-text-secondary text-xs mb-2 block">AI 提供商</label>
-              <div className="flex gap-2">
+            <div className="mb-6">
+              <label className="text-text-secondary text-xs mb-3 block font-medium">AI 提供商</label>
+              <div className="grid grid-cols-3 gap-2">
                 <button
                   onClick={() => handleSwitchProvider('deepseek')}
-                  className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  className={`py-3 rounded-xl text-sm font-medium transition-all ${
                     settings.aiProvider === 'deepseek'
-                      ? 'bg-coral-gradient text-white'
-                      : 'bg-[#0F0F0F] text-text-secondary border border-dark-border/50'
+                      ? 'bg-coral-gradient text-white shadow-lg shadow-coral-light/20'
+                      : 'bg-[#0F0F0F] text-text-secondary border border-dark-border/50 hover:border-dark-border'
                   }`}
                 >
                   DeepSeek
                 </button>
                 <button
                   onClick={() => handleSwitchProvider('qwen')}
-                  className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  className={`py-3 rounded-xl text-sm font-medium transition-all ${
                     settings.aiProvider === 'qwen'
-                      ? 'bg-coral-gradient text-white'
-                      : 'bg-[#0F0F0F] text-text-secondary border border-dark-border/50'
+                      ? 'bg-coral-gradient text-white shadow-lg shadow-coral-light/20'
+                      : 'bg-[#0F0F0F] text-text-secondary border border-dark-border/50 hover:border-dark-border'
                   }`}
                 >
                   通义千问
                 </button>
                 <button
                   onClick={() => handleSwitchProvider('zhipu')}
-                  className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  className={`py-3 rounded-xl text-sm font-medium transition-all ${
                     settings.aiProvider === 'zhipu'
-                      ? 'bg-coral-gradient text-white'
-                      : 'bg-[#0F0F0F] text-text-secondary border border-dark-border/50'
+                      ? 'bg-coral-gradient text-white shadow-lg shadow-coral-light/20'
+                      : 'bg-[#0F0F0F] text-text-secondary border border-dark-border/50 hover:border-dark-border'
                   }`}
                 >
                   智谱 GLM
@@ -246,60 +257,62 @@ export default function Profile() {
               </div>
             </div>
 
-            {/* API 配置区域 */}
-            <div className="mb-5 bg-[#0F0F0F]/40 rounded-2xl p-4 border border-dark-border/30">
-              <label className="text-text-secondary text-xs mb-2 block">API 配置</label>
-
-              {/* API Key 输入 */}
-              <div className="mb-3">
-                <label className="text-text-secondary/60 text-[10px] mb-1 block">
-                  {settings.aiProvider === 'deepseek' ? 'DeepSeek' : settings.aiProvider === 'qwen' ? '通义千问' : '智谱 GLM'} API Key
-                </label>
-                <div className="relative">
-                  <input
-                    type={showKey ? 'text' : 'password'}
-                    value={
-                      settings.aiProvider === 'deepseek'
-                        ? tempDeepseekKey
-                        : settings.aiProvider === 'qwen'
-                          ? tempQwenKey
-                          : tempZhipuKey
+            {/* API Key 输入区域 */}
+            <div className="mb-4">
+              <label className="text-text-secondary text-xs mb-3 block font-medium">
+                {settings.aiProvider === 'deepseek' ? 'DeepSeek' : settings.aiProvider === 'qwen' ? '通义千问' : '智谱 GLM'} API Key
+              </label>
+              <div className="relative">
+                <input
+                  type={showKey ? 'text' : 'password'}
+                  value={
+                    settings.aiProvider === 'deepseek'
+                      ? tempDeepseekKey
+                      : settings.aiProvider === 'qwen'
+                        ? tempQwenKey
+                        : tempZhipuKey
+                  }
+                  onChange={(e) => {
+                    if (settings.aiProvider === 'deepseek') {
+                      setTempDeepseekKey(e.target.value)
+                    } else if (settings.aiProvider === 'qwen') {
+                      setTempQwenKey(e.target.value)
+                    } else {
+                      setTempZhipuKey(e.target.value)
                     }
-                    onChange={(e) => {
-                      if (settings.aiProvider === 'deepseek') {
-                        setTempDeepseekKey(e.target.value)
-                      } else if (settings.aiProvider === 'qwen') {
-                        setTempQwenKey(e.target.value)
-                      } else {
-                        setTempZhipuKey(e.target.value)
-                      }
-                      setTestStatus(null)
-                    }}
-                    placeholder={`输入 API Key`}
-                    className="w-full bg-[#0F0F0F] rounded-xl px-4 py-2.5 text-sm text-text-primary outline-none border border-dark-border/50 focus:border-coral-light/50 pr-12"
-                  />
-                  <button
-                    onClick={() => setShowKey(!showKey)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary/50 hover:text-text-secondary text-xs"
-                  >
-                    {showKey ? '🙈' : '👁️'}
-                  </button>
-                </div>
-                <p className="text-text-secondary/30 text-[10px] mt-1">
-                  {settings.aiProvider === 'deepseek'
-                    ? '在 platform.deepseek.com 获取'
-                    : settings.aiProvider === 'qwen'
-                      ? '在 dashscope.aliyun.com 获取'
-                      : '在 open.bigmodel.cn 获取'}
-                </p>
+                    setTestStatus(null)
+                  }}
+                  placeholder="sk-... 或输入您的 API Key"
+                  className="w-full bg-[#0F0F0F] rounded-xl px-4 py-3 text-sm text-text-primary outline-none border border-dark-border/50 focus:border-coral-light/50 transition-colors pr-12"
+                />
+                <button
+                  onClick={() => setShowKey(!showKey)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary/50 hover:text-text-secondary text-sm w-8 h-8 flex items-center justify-center"
+                >
+                  {showKey ? '🙈' : '👁️'}
+                </button>
               </div>
+              <p className="text-text-secondary/40 text-[11px] mt-2">
+                {settings.aiProvider === 'deepseek'
+                  ? '💡 在 platform.deepseek.com 获取'
+                  : settings.aiProvider === 'qwen'
+                    ? '💡 在 dashscope.aliyun.com 获取'
+                    : '💡 在 open.bigmodel.cn 获取'}
+              </p>
             </div>
 
-            {/* 测试连接按钮 */}
+            {/* 直接保存提示 */}
+            <div className="bg-coral-light/10 rounded-xl p-3 mb-4 border border-coral-light/20">
+              <p className="text-coral-light text-[11px] leading-relaxed">
+                💡 输入 API Key 后直接点击保存即可，测试连接是可选的
+              </p>
+            </div>
+
+            {/* 测试连接 */}
             <button
               onClick={handleTestAPI}
-              disabled={testing}
-              className="w-full py-3 rounded-xl bg-[#1A3A2F] text-[#4ADE80] font-medium text-sm border border-[#4ADE80]/30 hover:border-[#4ADE80]/50 transition-all disabled:opacity-50 mb-3 flex items-center justify-center gap-2"
+              disabled={testing || !(tempDeepseekKey || tempQwenKey || tempZhipuKey)}
+              className="w-full py-3 rounded-xl bg-[#1A3A2F] text-[#4ADE80] font-medium text-sm border border-[#4ADE80]/30 hover:border-[#4ADE80]/50 transition-all disabled:opacity-40 disabled:cursor-not-allowed mb-3 flex items-center justify-center gap-2"
             >
               {testing ? (
                 <>
@@ -308,42 +321,45 @@ export default function Profile() {
                 </>
               ) : (
                 <>
-                  <span>🔌</span> 测试 API 连接
+                  <span>🔌</span> 测试连接（可选）
                 </>
               )}
             </button>
 
             {/* 测试结果 */}
             {testStatus && (
-              <div className={`rounded-xl p-3 mb-4 text-xs ${
+              <div className={`rounded-xl p-4 mb-4 text-sm ${
                 testStatus.type === 'success'
-                  ? 'bg-[#1A3A2F] text-[#4ADE80] border border-[#4ADE80]/20'
-                  : 'bg-[#3A1A1A] text-red-400 border border-red-400/20'
+                  ? 'bg-[#1A3A2F]/80 text-[#4ADE80] border border-[#4ADE80]/30'
+                  : 'bg-[#3A1A1A]/80 text-red-400 border border-red-400/30'
               }`}>
-                {testStatus.type === 'success' ? '✅ ' : '❌ '}{testStatus.message}
+                <div className="flex items-center gap-2">
+                  <span>{testStatus.type === 'success' ? '✅' : '❌'}</span>
+                  <span>{testStatus.message}</span>
+                </div>
               </div>
             )}
 
-            {/* 温馨提示 */}
-            <div className="bg-[#0F0F0F]/40 rounded-xl p-3 mb-5 border border-dark-border/30">
-              <p className="text-text-secondary/50 text-[10px] leading-relaxed">
-                💡 API Key 仅存储在本地，不会上传至任何服务器
+            {/* 安全提示 */}
+            <div className="bg-[#0F0F0F]/60 rounded-xl p-4 mb-6 border border-dark-border/30">
+              <p className="text-text-secondary/60 text-[11px] leading-relaxed">
+                🔒 API Key 仅加密存储在您的本地设备中，不会上传至任何服务器
               </p>
             </div>
 
-            {/* 保存按钮 */}
+            {/* 底部操作按钮 */}
             <div className="flex gap-3">
               <button
                 onClick={() => setShowSettings(false)}
-                className="flex-1 py-3 rounded-xl bg-dark-border/30 text-text-primary font-medium text-sm"
+                className="flex-1 py-3 rounded-xl bg-[#0F0F0F] text-text-secondary font-medium text-sm border border-dark-border/50 hover:border-dark-border transition-colors"
               >
                 取消
               </button>
               <button
                 onClick={handleSaveSettings}
-                className="flex-1 py-3 rounded-xl bg-coral-gradient text-white font-medium text-sm"
+                className="flex-1 py-3 rounded-xl bg-coral-gradient text-white font-medium text-sm shadow-lg shadow-coral-light/20 hover:shadow-coral-light/30 transition-all"
               >
-                保存
+                保存设置
               </button>
             </div>
           </div>

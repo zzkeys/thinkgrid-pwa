@@ -222,47 +222,51 @@ export async function testAPIConnection(overrideKey) {
       ? settings.zhipuApiKey
       : settings.qwenApiKey)
 
-  if (!apiKey) {
-    throw new Error(`请先在设置中配置 ${AI_PROVIDERS[provider].name} 的 API Key`)
-  }
-
-  const providerConfig = AI_PROVIDERS[provider]
-
-  const messages = [
-    { role: 'user', content: '你好，请回复"连接成功"' }
-  ]
-
-  try {
-    const response = await fetch(providerConfig.apiUrl, {
-      method: 'POST',
-      headers: providerConfig.headers(apiKey),
-      body: JSON.stringify(providerConfig.body(messages)),
-    })
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      throw new Error(`接口返回错误 (${response.status}): ${errorText.substring(0, 200)}`)
+    if (!apiKey) {
+      throw new Error(`请先在设置中配置 ${AI_PROVIDERS[provider].name} 的 API Key`)
     }
 
-    const data = await response.json()
+    const providerConfig = AI_PROVIDERS[provider]
 
-    // 解析响应内容
-    let content = ''
-    if (provider === 'qwen' && providerConfig.parseResponse) {
-      content = providerConfig.parseResponse(data)
-    } else {
-      content = data.choices?.[0]?.message?.content || ''
+    const messages = [
+      { role: 'user', content: '你好，请回复"连接成功"' }
+    ]
+
+    try {
+      const response = await fetch(providerConfig.apiUrl, {
+        method: 'POST',
+        headers: providerConfig.headers(apiKey),
+        body: JSON.stringify(providerConfig.body(messages)),
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`接口返回错误 (${response.status}): ${errorText.substring(0, 200)}`)
+      }
+
+      const data = await response.json()
+
+      // 解析响应内容
+      let content = ''
+      if (provider === 'qwen' && providerConfig.parseResponse) {
+        content = providerConfig.parseResponse(data)
+      } else {
+        content = data.choices?.[0]?.message?.content || ''
+      }
+
+      if (!content) {
+        throw new Error('API 返回内容为空')
+      }
+
+      return { success: true, message: `${AI_PROVIDERS[provider].name} 连接成功`, content }
+    } catch (error) {
+      console.error('API 测试失败:', error)
+      // 判断是否是 CORS 错误
+      if (error.message && error.message.includes('Failed to fetch')) {
+        throw new Error('浏览器安全策略阻止了连接测试（CORS）。这是正常现象，保存后 AI 功能仍可使用。' )
+      }
+      throw new Error(error.message || '连接失败，请检查网络或 API Key')
     }
-
-    if (!content) {
-      throw new Error('API 返回内容为空')
-    }
-
-    return { success: true, message: `${AI_PROVIDERS[provider].name} 连接成功`, content }
-  } catch (error) {
-    console.error('API 测试失败:', error)
-    throw new Error(error.message || '连接失败，请检查网络或 API Key')
-  }
 }
 
 // AI 生成标题

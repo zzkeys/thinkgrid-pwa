@@ -7,7 +7,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'icon-192.svg', 'icon-512.svg', 'logo.jpg'],
+      includeAssets: ['favicon.svg', 'icon-192.svg', 'icon-512.svg', 'logo.png'],
       manifest: {
         name: '思格 Think Grid',
         short_name: '思格',
@@ -19,14 +19,14 @@ export default defineConfig({
         theme_color: '#0F0F0F',
         icons: [
           {
-            src: '/icon-192.svg',
+            src: '/logo.png',
             sizes: '192x192',
-            type: 'image/svg+xml',
+            type: 'image/png',
           },
           {
-            src: '/icon-512.svg',
+            src: '/logo.png',
             sizes: '512x512',
-            type: 'image/svg+xml',
+            type: 'image/png',
           },
         ],
       },

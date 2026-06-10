@@ -90,7 +90,11 @@ lint/tmp/
 *.hprof
 
 # Cordova plugins for Capacitor
-capacitor-cordova-android-plugins
+# Keep build files but ignore generated plugin content
+capacitor-cordova-android-plugins/src/main/java/*
+!capacitor-cordova-android-plugins/src/main/java/.gitkeep
+capacitor-cordova-android-plugins/src/main/res/*
+!capacitor-cordova-android-plugins/src/main/res/.gitkeep
 
 # Copied web assets
 app/src/main/assets/public

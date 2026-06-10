@@ -210,3 +210,111 @@ export function getAIProviderName() {
   const provider = settings.aiProvider || 'deepseek'
   return AI_PROVIDERS[provider].name
 }
+
+// 测试 API 连接
+export async function testAPIConnection() {
+  const settings = getSettings()
+  const provider = settings.aiProvider || 'deepseek'
+  const apiKey = provider === 'deepseek'
+    ? settings.deepseekApiKey
+    : provider === 'zhipu'
+      ? settings.zhipuApiKey
+      : settings.qwenApiKey
+
+  if (!apiKey) {
+    throw new Error(`请先在设置中配置 ${AI_PROVIDERS[provider].name} 的 API Key`)
+  }
+
+  const providerConfig = AI_PROVIDERS[provider]
+
+  const messages = [
+    { role: 'user', content: '你好，请回复"连接成功"' }
+  ]
+
+  try {
+    const response = await fetch(providerConfig.apiUrl, {
+      method: 'POST',
+      headers: providerConfig.headers(apiKey),
+      body: JSON.stringify(providerConfig.body(messages)),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`接口返回错误 (${response.status}): ${errorText.substring(0, 200)}`)
+    }
+
+    const data = await response.json()
+
+    // 解析响应内容
+    let content = ''
+    if (provider === 'qwen' && providerConfig.parseResponse) {
+      content = providerConfig.parseResponse(data)
+    } else {
+      content = data.choices?.[0]?.message?.content || ''
+    }
+
+    if (!content) {
+      throw new Error('API 返回内容为空')
+    }
+
+    return { success: true, message: `${AI_PROVIDERS[provider].name} 连接成功`, content }
+  } catch (error) {
+    console.error('API 测试失败:', error)
+    throw new Error(error.message || '连接失败，请检查网络或 API Key')
+  }
+}
+
+// AI 生成标题
+export async function generateTitle(content) {
+  const settings = getSettings()
+  const provider = settings.aiProvider || 'deepseek'
+  const apiKey = provider === 'deepseek'
+    ? settings.deepseekApiKey
+    : provider === 'zhipu'
+      ? settings.zhipuApiKey
+      : settings.qwenApiKey
+
+  if (!apiKey) {
+    throw new Error('请先配置 AI API Key')
+  }
+
+  const providerConfig = AI_PROVIDERS[provider]
+
+  const messages = [
+    {
+      role: 'system',
+      content: '你是一个标题生成助手。请根据用户提供的笔记内容，生成一个简洁、有吸引力的标题（不超过15个字）。只返回标题文字，不要加任何解释。'
+    },
+    {
+      role: 'user',
+      content: `请为以下内容生成一个标题：\n\n${content.substring(0, 500)}`
+    }
+  ]
+
+  try {
+    const response = await fetch(providerConfig.apiUrl, {
+      method: 'POST',
+      headers: providerConfig.headers(apiKey),
+      body: JSON.stringify(providerConfig.body(messages)),
+    })
+
+    if (!response.ok) {
+      throw new Error(`接口调用失败 (${response.status})`)
+    }
+
+    const data = await response.json()
+
+    let result = ''
+    if (provider === 'qwen' && providerConfig.parseResponse) {
+      result = providerConfig.parseResponse(data)
+    } else {
+      result = data.choices?.[0]?.message?.content || ''
+    }
+
+    // 清理标题：去除引号、换行等多余字符
+    return result.replace(/["""']/g, '').replace(/\n/g, '').trim().substring(0, 20)
+  } catch (error) {
+    console.error('生成标题失败:', error)
+    throw error
+  }
+}

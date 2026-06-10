@@ -34,7 +34,7 @@ export default function Home() {
   return (
     <div className="min-h-full bg-dark-bg">
       {/* 顶部标题 */}
-      <header className="px-5 pt-14 pb-4">
+      <header className="px-5 pt-4 pb-4">
         <h1 className="text-text-primary text-2xl font-bold tracking-tight">
           思格 <span className="text-text-secondary/60 text-sm font-normal ml-1">Think Grid</span>
         </h1>

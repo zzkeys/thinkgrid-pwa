@@ -1,0 +1,19 @@
+{
+  "name": "思格 Think Grid",
+  "short_name": "思格",
+  "description": "PWA 笔记应用 · 本地存储",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0A1628",
+  "theme_color": "#0A1628",
+  "orientation": "portrait",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

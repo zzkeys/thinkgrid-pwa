@@ -241,7 +241,16 @@ export async function testAPIConnection(overrideKey) {
 
       if (!response.ok) {
         const errorText = await response.text()
-        throw new Error(`接口返回错误 (${response.status}): ${errorText.substring(0, 200)}`)
+        // 解析常见错误
+        let errorMsg = errorText.substring(0, 200)
+        if (response.status === 402 || errorText.includes('Balance')) {
+          errorMsg = 'API Key 余额不足，请充值后再试'
+        } else if (response.status === 401) {
+          errorMsg = 'API Key 无效或已过期，请检查配置'
+        } else if (response.status === 429) {
+          errorMsg = '请求过于频繁，请稍后再试'
+        }
+        throw new Error(`接口返回错误 (${response.status}): ${errorMsg}`)
       }
 
       const data = await response.json()

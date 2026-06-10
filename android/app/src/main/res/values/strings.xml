@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">thinkgrid</string>
-    <string name="title_activity_main">thinkgrid</string>
+    <string name="app_name">Think Grid</string>
+    <string name="title_activity_main">Think Grid</string>
     <string name="package_name">com.thinkgrid.app</string>
     <string name="custom_url_scheme">com.thinkgrid.app</string>
 </resources>

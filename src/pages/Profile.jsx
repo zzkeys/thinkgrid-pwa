@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getStats, getSettings, saveSettings, getNotes, getTags, exportToJSON, exportToMarkdown, exportToText, importFromJSON } from '../services/storage.js'
-import { isAIConfigured, getAIProviderName, testAPIConnection } from '../services/ai.js'
+import { isAIConfigured, getAIProviderName, testAPIConnection, AI_MODELS } from '../services/ai.js'
 
 export default function Profile() {
   const navigate = useNavigate()
@@ -19,6 +19,14 @@ export default function Profile() {
   const [testing, setTesting] = useState(false)
   const [importStatus, setImportStatus] = useState(null)
   const [showKey, setShowKey] = useState(false)
+  // 新 AI 设置状态
+  const [tempAIEnabled, setTempAIEnabled] = useState(true)
+  const [tempAIModel, setTempAIModel] = useState('glm-4-flash')
+  const [tempApiUrl, setTempApiUrl] = useState('')
+  const [tempApiKey, setTempApiKey] = useState('')
+  const [tempCustomPromptEnabled, setTempCustomPromptEnabled] = useState(false)
+  const [tempCustomPrompt, setTempCustomPrompt] = useState('')
+  const [showModelSelect, setShowModelSelect] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -40,11 +48,27 @@ export default function Profile() {
     setTempZhipuKey(st.zhipuApiKey || '')
     setTempUserName(st.userName || '')
     setTempUserBio(st.userBio || '')
+    // 新 AI 设置
+    setTempAIEnabled(st.aiEnabled !== false)
+    setTempAIModel(st.aiModel || 'glm-4-flash')
+    setTempApiUrl(st.apiUrl || '')
+    setTempApiKey(st.apiKey || '')
+    setTempCustomPromptEnabled(st.customPromptEnabled || false)
+    setTempCustomPrompt(st.customPrompt || '')
   }
 
   const handleSaveSettings = () => {
     const newSettings = {
       ...settings,
+      // 新 AI 配置
+      aiEnabled: tempAIEnabled,
+      aiProvider: settings.aiProvider,
+      aiModel: tempAIModel,
+      apiUrl: tempApiUrl.trim(),
+      apiKey: tempApiKey.trim(),
+      customPromptEnabled: tempCustomPromptEnabled,
+      customPrompt: tempCustomPrompt.trim(),
+      // 兼容旧配置
       deepseekApiKey: tempDeepseekKey.trim(),
       qwenApiKey: tempQwenKey.trim(),
       zhipuApiKey: tempZhipuKey.trim(),
@@ -68,13 +92,13 @@ export default function Profile() {
     setTesting(true)
     setTestStatus(null)
     try {
-      // 获取当前临时输入的 API Key 进行测试
-      const currentKey = settings.aiProvider === 'deepseek'
-        ? tempDeepseekKey
-        : settings.aiProvider === 'qwen'
-          ? tempQwenKey
-          : tempZhipuKey
-      const result = await testAPIConnection(currentKey.trim() || undefined)
+      // 使用临时输入的配置进行测试
+      const result = await testAPIConnection({
+        provider: settings.aiProvider,
+        model: tempAIModel,
+        apiKey: tempApiKey.trim(),
+        apiUrl: tempApiUrl.trim() || undefined,
+      })
       setTestStatus({ type: 'success', message: result.message })
     } catch (error) {
       setTestStatus({ type: 'error', message: error.message })
@@ -208,7 +232,7 @@ export default function Profile() {
       {/* 设置弹窗 */}
       {showSettings && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setShowSettings(false)}>
-          <div className="bg-dark-card rounded-3xl w-full max-w-md p-6 animate-fade-in max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-dark-card rounded-3xl w-full max-w-md p-6 animate-fade-in max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             {/* 顶部标题栏 */}
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-text-primary font-semibold text-lg">AI 设置</h3>
@@ -220,99 +244,153 @@ export default function Profile() {
               </button>
             </div>
 
-            {/* AI 提供商选择 */}
+            {/* AI 功能开关 */}
+            <div className="mb-6">
+              <label className="text-text-secondary text-xs mb-3 block font-medium">AI 功能</label>
+              <div className="bg-[#0F0F0F] rounded-2xl p-4 border border-dark-border/30">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl">🤖</span>
+                    <div>
+                      <p className="text-text-primary text-sm font-medium">启用 AI 助手</p>
+                      <p className="text-text-secondary/50 text-[11px]">开启后可使用 AI 辅助功能</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setTempAIEnabled(!tempAIEnabled)}
+                    className={`w-12 h-7 rounded-full transition-all relative ${
+                      tempAIEnabled ? 'bg-coral-light' : 'bg-dark-border/50'
+                    }`}
+                  >
+                    <div className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow-md transition-all ${
+                      tempAIEnabled ? 'left-[22px]' : 'left-0.5'
+                    }`} />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* 提供商选择 */}
             <div className="mb-6">
               <label className="text-text-secondary text-xs mb-3 block font-medium">AI 提供商</label>
               <div className="grid grid-cols-3 gap-2">
-                <button
-                  onClick={() => handleSwitchProvider('deepseek')}
-                  className={`py-3 rounded-xl text-sm font-medium transition-all ${
-                    settings.aiProvider === 'deepseek'
-                      ? 'bg-coral-gradient text-white shadow-lg shadow-coral-light/20'
-                      : 'bg-[#0F0F0F] text-text-secondary border border-dark-border/50 hover:border-dark-border'
-                  }`}
-                >
-                  DeepSeek
-                </button>
-                <button
-                  onClick={() => handleSwitchProvider('qwen')}
-                  className={`py-3 rounded-xl text-sm font-medium transition-all ${
-                    settings.aiProvider === 'qwen'
-                      ? 'bg-coral-gradient text-white shadow-lg shadow-coral-light/20'
-                      : 'bg-[#0F0F0F] text-text-secondary border border-dark-border/50 hover:border-dark-border'
-                  }`}
-                >
-                  通义千问
-                </button>
-                <button
-                  onClick={() => handleSwitchProvider('zhipu')}
-                  className={`py-3 rounded-xl text-sm font-medium transition-all ${
-                    settings.aiProvider === 'zhipu'
-                      ? 'bg-coral-gradient text-white shadow-lg shadow-coral-light/20'
-                      : 'bg-[#0F0F0F] text-text-secondary border border-dark-border/50 hover:border-dark-border'
-                  }`}
-                >
-                  智谱 GLM
-                </button>
+                {Object.entries(AI_MODELS).map(([key, info]) => (
+                  <button
+                    key={key}
+                    onClick={() => {
+                      handleSwitchProvider(key)
+                      setTempAIModel(info.models[0].id)
+                      setTestStatus(null)
+                    }}
+                    className={`py-3 rounded-xl text-sm font-medium transition-all ${
+                      settings.aiProvider === key
+                        ? 'bg-coral-gradient text-white shadow-lg shadow-coral-light/20'
+                        : 'bg-[#0F0F0F] text-text-secondary border border-dark-border/50 hover:border-dark-border'
+                    }`}
+                  >
+                    {info.name}
+                  </button>
+                ))}
               </div>
             </div>
 
-            {/* API Key 输入区域 */}
-            <div className="mb-4">
-              <label className="text-text-secondary text-xs mb-3 block font-medium">
-                {settings.aiProvider === 'deepseek' ? 'DeepSeek' : settings.aiProvider === 'qwen' ? '通义千问' : '智谱 GLM'} API Key
-              </label>
-              <div className="relative">
+            {/* API 配置 */}
+            <div className="mb-6">
+              <label className="text-text-secondary text-xs mb-3 block font-medium">API 配置</label>
+
+              {/* API 地址 */}
+              <div className="bg-[#0F0F0F] rounded-2xl p-4 border border-dark-border/30 mb-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-sm">☁️</span>
+                  <span className="text-text-primary text-sm">API 地址</span>
+                </div>
                 <input
-                  type={showKey ? 'text' : 'password'}
-                  value={
-                    settings.aiProvider === 'deepseek'
-                      ? tempDeepseekKey
-                      : settings.aiProvider === 'qwen'
-                        ? tempQwenKey
-                        : tempZhipuKey
-                  }
-                  onChange={(e) => {
-                    if (settings.aiProvider === 'deepseek') {
-                      setTempDeepseekKey(e.target.value)
-                    } else if (settings.aiProvider === 'qwen') {
-                      setTempQwenKey(e.target.value)
-                    } else {
-                      setTempZhipuKey(e.target.value)
-                    }
-                    setTestStatus(null)
-                  }}
-                  placeholder="sk-... 或输入您的 API Key"
-                  className="w-full bg-[#0F0F0F] rounded-xl px-4 py-3 text-sm text-text-primary outline-none border border-dark-border/50 focus:border-coral-light/50 transition-colors pr-12"
+                  type="text"
+                  value={tempApiUrl}
+                  onChange={(e) => { setTempApiUrl(e.target.value); setTestStatus(null) }}
+                  placeholder={AI_MODELS[settings.aiProvider]?.defaultUrl || 'https://...'}
+                  className="w-full bg-[#1A1A1A] rounded-xl px-4 py-2.5 text-sm text-text-primary outline-none border border-dark-border/50 focus:border-coral-light/50 transition-colors"
                 />
-                <button
-                  onClick={() => setShowKey(!showKey)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary/50 hover:text-text-secondary text-sm w-8 h-8 flex items-center justify-center"
-                >
-                  {showKey ? '🙈' : '👁️'}
-                </button>
               </div>
-              <p className="text-text-secondary/40 text-[11px] mt-2">
-                {settings.aiProvider === 'deepseek'
-                  ? '💡 在 platform.deepseek.com 获取'
-                  : settings.aiProvider === 'qwen'
-                    ? '💡 在 dashscope.aliyun.com 获取'
-                    : '💡 在 open.bigmodel.cn 获取'}
-              </p>
+
+              {/* API 密钥 */}
+              <div className="bg-[#0F0F0F] rounded-2xl p-4 border border-dark-border/30">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-sm">🔑</span>
+                  <span className="text-text-primary text-sm">API 密钥</span>
+                </div>
+                <div className="relative">
+                  <input
+                    type={showKey ? 'text' : 'password'}
+                    value={tempApiKey}
+                    onChange={(e) => { setTempApiKey(e.target.value); setTestStatus(null) }}
+                    placeholder="输入您的 API Key"
+                    className="w-full bg-[#1A1A1A] rounded-xl px-4 py-2.5 text-sm text-text-primary outline-none border border-dark-border/50 focus:border-coral-light/50 transition-colors pr-12"
+                  />
+                  <button
+                    onClick={() => setShowKey(!showKey)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary/50 hover:text-text-secondary text-sm w-8 h-8 flex items-center justify-center"
+                  >
+                    {showKey ? '🙈' : '👁️'}
+                  </button>
+                </div>
+              </div>
             </div>
 
-            {/* 直接保存提示 */}
-            <div className="bg-coral-light/10 rounded-xl p-3 mb-4 border border-coral-light/20">
-              <p className="text-coral-light text-[11px] leading-relaxed">
-                💡 输入 API Key 后直接点击保存即可，测试连接是可选的
-              </p>
+            {/* AI 模型 */}
+            <div className="mb-6">
+              <label className="text-text-secondary text-xs mb-3 block font-medium">AI 模型</label>
+              <button
+                onClick={() => setShowModelSelect(true)}
+                className="w-full bg-[#0F0F0F] rounded-2xl p-4 border border-dark-border/30 flex items-center justify-between hover:border-dark-border/60 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-sm">🧠</span>
+                  <div className="text-left">
+                    <p className="text-text-primary text-sm">模型选择</p>
+                    <p className="text-text-secondary/50 text-[11px]">
+                      {AI_MODELS[settings.aiProvider]?.models.find(m => m.id === tempAIModel)?.name || tempAIModel}
+                    </p>
+                  </div>
+                </div>
+                <span className="text-text-secondary/40">›</span>
+              </button>
+            </div>
+
+            {/* 自定义提示词 */}
+            <div className="mb-6">
+              <label className="text-text-secondary text-xs mb-3 block font-medium">自定义提示词</label>
+              <div className="bg-[#0F0F0F] rounded-2xl p-4 border border-dark-border/30">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-text-primary text-sm">启用自定义提示词</span>
+                  <button
+                    onClick={() => setTempCustomPromptEnabled(!tempCustomPromptEnabled)}
+                    className={`w-10 h-6 rounded-full transition-all relative ${
+                      tempCustomPromptEnabled ? 'bg-coral-light' : 'bg-dark-border/50'
+                    }`}
+                  >
+                    <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-md transition-all ${
+                      tempCustomPromptEnabled ? 'left-[18px]' : 'left-0.5'
+                    }`} />
+                  </button>
+                </div>
+                {tempCustomPromptEnabled && (
+                  <textarea
+                    value={tempCustomPrompt}
+                    onChange={(e) => setTempCustomPrompt(e.target.value)}
+                    placeholder="输入自定义的 AI 提示词..."
+                    rows={3}
+                    className="w-full bg-[#1A1A1A] rounded-xl px-4 py-2.5 text-sm text-text-primary outline-none border border-dark-border/50 focus:border-coral-light/50 transition-colors resize-none"
+                  />
+                )}
+              </div>
             </div>
 
             {/* 测试连接 */}
             <button
               onClick={handleTestAPI}
-              disabled={testing || !(tempDeepseekKey || tempQwenKey || tempZhipuKey)}
-              className="w-full py-3 rounded-xl bg-[#1A3A2F] text-[#4ADE80] font-medium text-sm border border-[#4ADE80]/30 hover:border-[#4ADE80]/50 transition-all disabled:opacity-40 disabled:cursor-not-allowed mb-3 flex items-center justify-center gap-2"
+              disabled={testing || !tempApiKey}
+              className="w-full py-3.5 rounded-xl bg-[#1A3A2F] text-[#4ADE80] font-medium text-sm border border-[#4ADE80]/30 hover:border-[#4ADE80]/50 transition-all disabled:opacity-40 disabled:cursor-not-allowed mb-4 flex items-center justify-center gap-2"
             >
               {testing ? (
                 <>
@@ -321,7 +399,7 @@ export default function Profile() {
                 </>
               ) : (
                 <>
-                  <span>🔌</span> 测试连接（可选）
+                  <span>🔌</span> 测试 API 连接
                 </>
               )}
             </button>
@@ -340,11 +418,14 @@ export default function Profile() {
               </div>
             )}
 
-            {/* 安全提示 */}
+            {/* 温馨提示 */}
             <div className="bg-[#0F0F0F]/60 rounded-xl p-4 mb-6 border border-dark-border/30">
-              <p className="text-text-secondary/60 text-[11px] leading-relaxed">
-                🔒 API Key 仅加密存储在您的本地设备中，不会上传至任何服务器
-              </p>
+              <p className="text-coral-light text-[11px] leading-relaxed mb-1">💡 温馨提示</p>
+              <ul className="text-text-secondary/50 text-[11px] leading-relaxed space-y-1 list-disc list-inside">
+                <li>选择模型后会自动填充 API 地址</li>
+                <li>API 密钥仅存储在本地，不会上传</li>
+                <li>支持所有兼容 OpenAI 格式的 AI 服务</li>
+              </ul>
             </div>
 
             {/* 底部操作按钮 */}
@@ -361,6 +442,41 @@ export default function Profile() {
               >
                 保存设置
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 模型选择弹窗 */}
+      {showModelSelect && (
+        <div className="fixed inset-0 bg-black/60 flex items-end justify-center z-[60]" onClick={() => setShowModelSelect(false)}>
+          <div className="bg-dark-card rounded-t-3xl w-full max-w-md p-6 animate-fade-in max-h-[70vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-text-primary font-semibold text-lg">选择模型</h3>
+              <button
+                onClick={() => setShowModelSelect(false)}
+                className="w-8 h-8 rounded-full bg-[#0F0F0F] flex items-center justify-center text-text-secondary hover:text-text-primary transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="space-y-2">
+              {AI_MODELS[settings.aiProvider]?.models.map((model) => (
+                <button
+                  key={model.id}
+                  onClick={() => {
+                    setTempAIModel(model.id)
+                    setShowModelSelect(false)
+                  }}
+                  className={`w-full py-3 px-4 rounded-xl text-left text-sm transition-all ${
+                    tempAIModel === model.id
+                      ? 'bg-coral-light/20 text-coral-light border border-coral-light/30'
+                      : 'bg-[#0F0F0F] text-text-primary border border-dark-border/30 hover:border-dark-border/60'
+                  }`}
+                >
+                  {model.name}
+                </button>
+              ))}
             </div>
           </div>
         </div>

@@ -3,35 +3,55 @@ import { getSettings } from './storage.js'
 // AI 接口服务
 // 支持 DeepSeek 和通义千问两个接口
 
-const AI_PROVIDERS = {
+// AI 模型配置
+export const AI_MODELS = {
   deepseek: {
     name: 'DeepSeek',
-    apiUrl: 'https://api.deepseek.com/v1/chat/completions',
-    model: 'deepseek-chat',
-    headers: (apiKey) => ({
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    }),
-    body: (messages) => ({
-      model: 'deepseek-chat',
-      messages,
-      temperature: 0.7,
-      max_tokens: 2000,
-    }),
+    defaultUrl: 'https://api.deepseek.com/v1/chat/completions',
+    models: [
+      { id: 'deepseek-chat', name: 'DeepSeek-V3' },
+      { id: 'deepseek-reasoner', name: 'DeepSeek-R1' },
+    ],
   },
   qwen: {
     name: '通义千问',
-    apiUrl: 'https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation',
-    model: 'qwen-turbo',
+    defaultUrl: 'https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation',
+    models: [
+      { id: 'qwen-turbo', name: 'Qwen-Turbo' },
+      { id: 'qwen-plus', name: 'Qwen-Plus' },
+      { id: 'qwen-max', name: 'Qwen-Max' },
+    ],
+  },
+  zhipu: {
+    name: '智谱 GLM',
+    defaultUrl: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
+    models: [
+      { id: 'glm-4-flash', name: 'GLM-4-Flash' },
+      { id: 'glm-4', name: 'GLM-4' },
+      { id: 'glm-4-air', name: 'GLM-4-Air' },
+    ],
+  },
+}
+
+// 构建请求配置
+function getProviderConfig(provider, model, customUrl) {
+  const providerInfo = AI_MODELS[provider]
+  const apiUrl = customUrl || providerInfo.defaultUrl
+
+  const baseConfig = {
+    name: providerInfo.name,
+    apiUrl,
     headers: (apiKey) => ({
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`,
     }),
-    body: (messages) => {
-      // 通义千问需要把 messages 转换成单轮 prompt
-      const lastMessage = messages[messages.length - 1]
-      return {
-        model: 'qwen-turbo',
+  }
+
+  if (provider === 'qwen') {
+    return {
+      ...baseConfig,
+      body: (messages) => ({
+        model,
         input: {
           messages: messages.map((m) => ({
             role: m.role,
@@ -42,28 +62,23 @@ const AI_PROVIDERS = {
           temperature: 0.7,
           max_tokens: 2000,
         },
-      }
-    },
-    // 通义千问的响应格式不同
-    parseResponse: (data) => {
-      return data.output?.text || data.output?.choices?.[0]?.message?.content || ''
-    },
-  },
-  zhipu: {
-    name: '智谱 GLM',
-    apiUrl: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
-    model: 'glm-4-flash',
-    headers: (apiKey) => ({
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    }),
+      }),
+      parseResponse: (data) => {
+        return data.output?.text || data.output?.choices?.[0]?.message?.content || ''
+      },
+    }
+  }
+
+  // DeepSeek 和智谱使用 OpenAI 兼容格式
+  return {
+    ...baseConfig,
     body: (messages) => ({
-      model: 'glm-4-flash',
+      model,
       messages,
       temperature: 0.7,
       max_tokens: 2000,
     }),
-  },
+  }
 }
 
 // 构建洞察 Prompt
@@ -126,32 +141,47 @@ function parseAIResponse(text) {
   }
 }
 
-// 调用 AI 接口
-export async function generateInsight(notes) {
-  const settings = getSettings()
+// 获取 API Key（兼容新旧配置）
+function getAPIKey(settings) {
+  // 优先使用新的统一 apiKey
+  if (settings.apiKey) return settings.apiKey
+  // 兼容旧配置
   const provider = settings.aiProvider || 'deepseek'
-  const apiKey = provider === 'deepseek'
+  return provider === 'deepseek'
     ? settings.deepseekApiKey
     : provider === 'zhipu'
       ? settings.zhipuApiKey
       : settings.qwenApiKey
+}
 
-  if (!apiKey) {
-    throw new Error(`请先在设置中配置 ${AI_PROVIDERS[provider].name} 的 API Key`)
+// 调用 AI 接口
+export async function generateInsight(notes) {
+  const settings = getSettings()
+
+  if (settings.aiEnabled === false) {
+    throw new Error('AI 功能已关闭，请在设置中开启')
   }
 
-  const providerConfig = AI_PROVIDERS[provider]
+  const provider = settings.aiProvider || 'zhipu'
+  const model = settings.aiModel || AI_MODELS[provider].models[0].id
+  const apiKey = getAPIKey(settings)
+
+  if (!apiKey) {
+    throw new Error(`请先在设置中配置 ${AI_MODELS[provider].name} 的 API Key`)
+  }
+
+  const providerConfig = getProviderConfig(provider, model, settings.apiUrl)
   const prompt = buildInsightPrompt(notes)
 
+  // 使用自定义提示词（如果启用）
+  let systemContent = '你是一位专业的思维教练和洞察分析师，擅长从笔记中提取核心主题、发现思维盲点、提出深刻问题。请 always 以 JSON 格式返回结果。'
+  if (settings.customPromptEnabled && settings.customPrompt) {
+    systemContent = settings.customPrompt
+  }
+
   const messages = [
-    {
-      role: 'system',
-      content: '你是一位专业的思维教练和洞察分析师，擅长从笔记中提取核心主题、发现思维盲点、提出深刻问题。请 always 以 JSON 格式返回结果。',
-    },
-    {
-      role: 'user',
-      content: prompt,
-    },
+    { role: 'system', content: systemContent },
+    { role: 'user', content: prompt },
   ]
 
   try {
@@ -163,12 +193,11 @@ export async function generateInsight(notes) {
 
     if (!response.ok) {
       const errorText = await response.text()
-      throw new Error(`${AI_PROVIDERS[provider].name} 接口调用失败 (${response.status}): ${errorText}`)
+      throw new Error(`${AI_MODELS[provider].name} 接口调用失败 (${response.status})`)
     }
 
     const data = await response.json()
 
-    // 解析响应内容
     let content = ''
     if (provider === 'qwen' && providerConfig.parseResponse) {
       content = providerConfig.parseResponse(data)
@@ -195,104 +224,98 @@ export async function generateQuickInsight(note) {
 // 检查 AI 是否已配置
 export function isAIConfigured() {
   const settings = getSettings()
-  const provider = settings.aiProvider || 'deepseek'
-  const apiKey = provider === 'deepseek'
-    ? settings.deepseekApiKey
-    : provider === 'zhipu'
-      ? settings.zhipuApiKey
-      : settings.qwenApiKey
-  return !!apiKey
+  if (settings.aiEnabled === false) return false
+  return !!getAPIKey(settings)
 }
 
 // 获取当前 AI 提供商名称
 export function getAIProviderName() {
   const settings = getSettings()
-  const provider = settings.aiProvider || 'deepseek'
-  return AI_PROVIDERS[provider].name
+  const provider = settings.aiProvider || 'zhipu'
+  const model = settings.aiModel
+  const modelName = AI_MODELS[provider].models.find(m => m.id === model)?.name || ''
+  return `${AI_MODELS[provider].name}${modelName ? ' · ' + modelName : ''}`
 }
 
 // 测试 API 连接
-// overrideKey: 可选，用于测试临时输入的 API Key（未保存时）
-export async function testAPIConnection(overrideKey) {
+// overrideConfig: 可选，用于测试临时输入的配置（未保存时）
+export async function testAPIConnection(overrideConfig = {}) {
   const settings = getSettings()
-  const provider = settings.aiProvider || 'deepseek'
-  const apiKey = overrideKey || (provider === 'deepseek'
-    ? settings.deepseekApiKey
-    : provider === 'zhipu'
-      ? settings.zhipuApiKey
-      : settings.qwenApiKey)
+  const provider = overrideConfig.provider || settings.aiProvider || 'zhipu'
+  const model = overrideConfig.model || settings.aiModel || AI_MODELS[provider].models[0].id
+  const apiKey = overrideConfig.apiKey || getAPIKey(settings)
+  const apiUrl = overrideConfig.apiUrl || settings.apiUrl
 
-    if (!apiKey) {
-      throw new Error(`请先在设置中配置 ${AI_PROVIDERS[provider].name} 的 API Key`)
+  if (!apiKey) {
+    throw new Error(`请先在设置中配置 ${AI_MODELS[provider].name} 的 API Key`)
+  }
+
+  const providerConfig = getProviderConfig(provider, model, apiUrl)
+
+  const messages = [
+    { role: 'user', content: '你好，请回复"连接成功"' }
+  ]
+
+  try {
+    const response = await fetch(providerConfig.apiUrl, {
+      method: 'POST',
+      headers: providerConfig.headers(apiKey),
+      body: JSON.stringify(providerConfig.body(messages)),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      let errorMsg = errorText.substring(0, 200)
+      if (response.status === 402 || errorText.includes('Balance')) {
+        errorMsg = 'API Key 余额不足，请充值后再试'
+      } else if (response.status === 401) {
+        errorMsg = 'API Key 无效或已过期，请检查配置'
+      } else if (response.status === 429) {
+        errorMsg = '请求过于频繁，请稍后再试'
+      }
+      throw new Error(`接口返回错误 (${response.status}): ${errorMsg}`)
     }
 
-    const providerConfig = AI_PROVIDERS[provider]
+    const data = await response.json()
 
-    const messages = [
-      { role: 'user', content: '你好，请回复"连接成功"' }
-    ]
-
-    try {
-      const response = await fetch(providerConfig.apiUrl, {
-        method: 'POST',
-        headers: providerConfig.headers(apiKey),
-        body: JSON.stringify(providerConfig.body(messages)),
-      })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        // 解析常见错误
-        let errorMsg = errorText.substring(0, 200)
-        if (response.status === 402 || errorText.includes('Balance')) {
-          errorMsg = 'API Key 余额不足，请充值后再试'
-        } else if (response.status === 401) {
-          errorMsg = 'API Key 无效或已过期，请检查配置'
-        } else if (response.status === 429) {
-          errorMsg = '请求过于频繁，请稍后再试'
-        }
-        throw new Error(`接口返回错误 (${response.status}): ${errorMsg}`)
-      }
-
-      const data = await response.json()
-
-      // 解析响应内容
-      let content = ''
-      if (provider === 'qwen' && providerConfig.parseResponse) {
-        content = providerConfig.parseResponse(data)
-      } else {
-        content = data.choices?.[0]?.message?.content || ''
-      }
-
-      if (!content) {
-        throw new Error('API 返回内容为空')
-      }
-
-      return { success: true, message: `${AI_PROVIDERS[provider].name} 连接成功`, content }
-    } catch (error) {
-      console.error('API 测试失败:', error)
-      // 判断是否是 CORS 错误
-      if (error.message && error.message.includes('Failed to fetch')) {
-        throw new Error('浏览器安全策略阻止了连接测试（CORS）。这是正常现象，保存后 AI 功能仍可使用。' )
-      }
-      throw new Error(error.message || '连接失败，请检查网络或 API Key')
+    let content = ''
+    if (provider === 'qwen' && providerConfig.parseResponse) {
+      content = providerConfig.parseResponse(data)
+    } else {
+      content = data.choices?.[0]?.message?.content || ''
     }
+
+    if (!content) {
+      throw new Error('API 返回内容为空')
+    }
+
+    return { success: true, message: `${AI_MODELS[provider].name} 连接成功`, content }
+  } catch (error) {
+    console.error('API 测试失败:', error)
+    if (error.message && error.message.includes('Failed to fetch')) {
+      throw new Error('浏览器安全策略阻止了连接测试（CORS）。这是正常现象，保存后 AI 功能仍可使用。')
+    }
+    throw new Error(error.message || '连接失败，请检查网络或 API Key')
+  }
 }
 
 // AI 生成标题
-export async function generateTitle(content) {
+export async function generateTitle(noteContent) {
   const settings = getSettings()
-  const provider = settings.aiProvider || 'deepseek'
-  const apiKey = provider === 'deepseek'
-    ? settings.deepseekApiKey
-    : provider === 'zhipu'
-      ? settings.zhipuApiKey
-      : settings.qwenApiKey
+
+  if (settings.aiEnabled === false) {
+    throw new Error('AI 功能已关闭')
+  }
+
+  const provider = settings.aiProvider || 'zhipu'
+  const model = settings.aiModel || AI_MODELS[provider].models[0].id
+  const apiKey = getAPIKey(settings)
 
   if (!apiKey) {
     throw new Error('请先配置 AI API Key')
   }
 
-  const providerConfig = AI_PROVIDERS[provider]
+  const providerConfig = getProviderConfig(provider, model, settings.apiUrl)
 
   const messages = [
     {
@@ -301,7 +324,7 @@ export async function generateTitle(content) {
     },
     {
       role: 'user',
-      content: `请为以下内容生成一个标题：\n\n${content.substring(0, 500)}`
+      content: `请为以下内容生成一个标题：\n\n${noteContent.substring(0, 500)}`
     }
   ]
 

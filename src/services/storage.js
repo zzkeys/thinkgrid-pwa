@@ -170,7 +170,18 @@ export function getSettings() {
 
 function getDefaultSettings() {
   return {
-    aiProvider: 'deepseek', // 'deepseek' | 'qwen' | 'zhipu'
+    // AI 功能开关
+    aiEnabled: true,
+    // AI 提供商和模型
+    aiProvider: 'zhipu', // 'deepseek' | 'qwen' | 'zhipu'
+    aiModel: 'glm-4-flash', // 具体模型名称
+    // API 配置
+    apiUrl: '', // 自定义 API 地址（为空则使用默认）
+    apiKey: '', // 统一的 API Key
+    // 自定义提示词
+    customPromptEnabled: false,
+    customPrompt: '',
+    // 兼容旧配置
     deepseekApiKey: '',
     qwenApiKey: '',
     zhipuApiKey: '',

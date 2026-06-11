@@ -372,7 +372,7 @@ export default function Tags() {
                 <button
                   key={tag.id}
                   onClick={() => handleTagClick(tag.id)}
-                  className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                  className={`inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all min-w-[72px] ${
                     isSelected
                       ? 'ring-2 ring-white/20 scale-105'
                       : 'hover:scale-105'

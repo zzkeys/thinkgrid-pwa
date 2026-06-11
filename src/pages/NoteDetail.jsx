@@ -188,7 +188,7 @@ export default function NoteDetail() {
 
       {/* 删除确认弹窗 */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black/60 flex items-end justify-center z-50" onClick={() => setShowDeleteConfirm(false)}>
+        <div className="fixed inset-0 bg-black/60 flex items-end justify-center z-[60]" onClick={() => setShowDeleteConfirm(false)}>
           <div className="bg-dark-card rounded-t-3xl w-full max-w-md p-6 animate-fade-in" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-text-primary font-semibold text-lg mb-2">删除笔记</h3>
             <p className="text-text-secondary text-sm mb-6">确定要删除「{note.title || '无标题'}」吗？此操作不可撤销。</p>

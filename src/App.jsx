@@ -41,10 +41,12 @@ function App() {
     // 添加返回按钮监听器
     const setupListener = async () => {
       try {
-        listener = await CapacitorApp.addListener('backButton', () => {
+        listener = await CapacitorApp.addListener('backButton', ({ canGoBack }) => {
           const currentShowEditConfirm = showEditConfirmRef.current
           const currentShowExitToast = showExitToastRef.current
-          const currentPath = window.location.pathname
+          // 使用 React Router 的 location.pathname，而不是 window.location.pathname
+          // 在 Capacitor 的 WebView 中，window.location.pathname 可能不准确
+          const currentPath = location.pathname
 
           // 如果正在显示编辑确认框，则关闭它
           if (currentShowEditConfirm) {

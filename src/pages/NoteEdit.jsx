@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getNoteById, saveNote, getTags, getTagName } from '../services/storage.js'
 import { generateTitle, isAIConfigured } from '../services/ai.js'
@@ -18,6 +18,25 @@ export default function NoteEdit() {
   const [newTagName, setNewTagName] = useState('')
   const [generatingTitle, setGeneratingTitle] = useState(false)
   const [showToolbar, setShowToolbar] = useState(false)
+
+  // 提取内容中的图片
+  const images = useMemo(() => {
+    const imgRegex = /!\[([^\]]*)\]\((data:image\/[^)]+)\)/g
+    const result = []
+    let match
+    while ((match = imgRegex.exec(content)) !== null) {
+      result.push({ alt: match[1], src: match[2], fullMatch: match[0] })
+    }
+    return result
+  }, [content])
+
+  // 删除指定图片
+  const handleDeleteImage = (index) => {
+    const img = images[index]
+    if (!img) return
+    const newContent = content.replace(img.fullMatch, '')
+    setContent(newContent.replace(/\n{3,}/g, '\n\n').trim())
+  }
 
   useEffect(() => {
     setAllTags(getTags())
@@ -215,6 +234,32 @@ export default function NoteEdit() {
             className="hidden"
           />
         </div>
+
+        {/* 图片预览 */}
+        {images.length > 0 && (
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-text-secondary text-xs">已插入图片 ({images.length})</span>
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-2 -mx-5 px-5 scrollbar-hide">
+              {images.map((img, index) => (
+                <div key={index} className="relative flex-shrink-0 group">
+                  <img
+                    src={img.src}
+                    alt={img.alt}
+                    className="w-20 h-20 object-cover rounded-xl border border-dark-border/50"
+                  />
+                  <button
+                    onClick={() => handleDeleteImage(index)}
+                    className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* 标签选择 */}
         <div className="mb-4">

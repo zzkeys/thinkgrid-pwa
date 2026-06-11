@@ -232,7 +232,7 @@ export default function Profile() {
       {/* 设置弹窗 */}
       {showSettings && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setShowSettings(false)}>
-          <div className="bg-dark-card rounded-3xl w-full max-w-md p-6 animate-fade-in max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-dark-card rounded-3xl w-full max-w-md p-6 pb-24 animate-fade-in max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             {/* 顶部标题栏 */}
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-text-primary font-semibold text-lg">AI 设置</h3>

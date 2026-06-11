@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { useEffect, useState, useRef } from 'react'
 import { App as CapacitorApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
@@ -13,7 +13,6 @@ import BottomNav from './components/BottomNav.jsx'
 
 function App() {
   const navigate = useNavigate()
-  const location = useLocation()
   const [showExitToast, _setShowExitToast] = useState(false)
   const [showEditConfirm, _setShowEditConfirm] = useState(false)
 
@@ -44,9 +43,9 @@ function App() {
         listener = await CapacitorApp.addListener('backButton', ({ canGoBack }) => {
           const currentShowEditConfirm = showEditConfirmRef.current
           const currentShowExitToast = showExitToastRef.current
-          // 使用 React Router 的 location.pathname，而不是 window.location.pathname
-          // 在 Capacitor 的 WebView 中，window.location.pathname 可能不准确
-          const currentPath = location.pathname
+          // 在 Capacitor WebView 中，使用 window.location.pathname 获取当前路径
+          // React Router 使用 history API 导航，window.location 会同步更新
+          const currentPath = window.location.pathname
 
           // 如果正在显示编辑确认框，则关闭它
           if (currentShowEditConfirm) {
@@ -125,27 +124,27 @@ function App() {
 
       {/* 退出提示 Toast */}
       {showExitToast && (
-        <div className="fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg z-50 text-sm">
+        <div className="fixed bottom-24 left-1/2 transform -translate-x-1/2 bg-[#1A1A1A] text-text-primary px-5 py-3 rounded-xl shadow-lg z-50 text-sm border border-dark-border/50">
           再按一次退出应用
         </div>
       )}
 
       {/* 编辑页面退出确认框 */}
       {showEditConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end justify-center z-50">
-          <div className="bg-white rounded-t-2xl w-full max-w-lg p-6">
-            <h3 className="text-lg font-semold text-gray-800 mb-2">退出编辑？</h3>
-            <p className="text-gray-600 mb-6">未保存的内容将丢失</p>
-            <div className="flex space-x-3">
+        <div className="fixed inset-0 bg-black/60 flex items-end justify-center z-[60]" onClick={() => setShowEditConfirm(false)}>
+          <div className="bg-dark-card rounded-t-3xl w-full max-w-lg p-6 pb-10" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-text-primary mb-2">退出编辑？</h3>
+            <p className="text-text-secondary mb-6">未保存的内容将丢失</p>
+            <div className="flex gap-3">
               <button
                 onClick={() => handleEditConfirm(false)}
-                className="flex-1 py-3 border border-gray-300 rounded-xl text-gray-700 font-medium"
+                className="flex-1 py-3.5 rounded-xl bg-[#0F0F0F] text-text-secondary font-medium text-sm border border-dark-border/50 hover:border-dark-border transition-colors"
               >
                 取消
               </button>
               <button
                 onClick={() => handleEditConfirm(true)}
-                className="flex-1 py-3 bg-red-500 text-white rounded-xl font-medium"
+                className="flex-1 py-3.5 rounded-xl bg-red-500 text-white font-medium text-sm"
               >
                 退出
               </button>

@@ -1,7 +1,24 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getNoteById, saveNote, getTags, getTagName } from '../services/storage.js'
 import { generateTitle, isAIConfigured } from '../services/ai.js'
+
+// 将 content 中的图片 markdown 替换为占位符，用于显示
+function toDisplayContent(content) {
+  return content.replace(/!\[([^\]]*)\]\((data:image\/[^)]+)\)/g, '[图片]')
+}
+
+// 将 displayContent 中的占位符还原为原始图片 markdown
+function toRawContent(displayContent, images) {
+  let result = displayContent
+  let imgIndex = 0
+  // 按顺序替换每个 [图片] 占位符
+  while (result.includes('[图片]') && imgIndex < images.length) {
+    result = result.replace('[图片]', images[imgIndex].fullMatch)
+    imgIndex++
+  }
+  return result
+}
 
 export default function NoteEdit() {
   const navigate = useNavigate()
@@ -12,6 +29,7 @@ export default function NoteEdit() {
 
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
+  const [displayContent, setDisplayContent] = useState('')
   const [selectedTags, setSelectedTags] = useState([])
   const [allTags, setAllTags] = useState([])
   const [showTagSelector, setShowTagSelector] = useState(false)
@@ -35,7 +53,9 @@ export default function NoteEdit() {
     const img = images[index]
     if (!img) return
     const newContent = content.replace(img.fullMatch, '')
-    setContent(newContent.replace(/\n{3,}/g, '\n\n').trim())
+    const cleaned = newContent.replace(/\n{3,}/g, '\n\n').trim()
+    setContent(cleaned)
+    setDisplayContent(toDisplayContent(cleaned))
   }
 
   useEffect(() => {
@@ -46,6 +66,7 @@ export default function NoteEdit() {
       if (note) {
         setTitle(note.title || '')
         setContent(note.content || '')
+        setDisplayContent(toDisplayContent(note.content || ''))
         setSelectedTags(note.tags || [])
       } else {
         navigate('/', { replace: true })
@@ -54,7 +75,10 @@ export default function NoteEdit() {
   }, [id, isEditing, navigate])
 
   const handleSave = () => {
-    if (!title.trim() && !content.trim()) {
+    // 保存前，将 displayContent 映射回 raw content（确保图片数据不丢失）
+    const finalContent = toRawContent(displayContent, images).trim()
+
+    if (!title.trim() && !finalContent) {
       alert('请输入标题或内容')
       return
     }
@@ -62,7 +86,7 @@ export default function NoteEdit() {
     saveNote({
       id: isEditing ? id : null,
       title: title.trim(), // 允许为空
-      content: content.trim(),
+      content: finalContent,
       tags: selectedTags,
     })
 
@@ -70,7 +94,8 @@ export default function NoteEdit() {
   }
 
   const handleGenerateTitle = async () => {
-    if (!content.trim()) {
+    const finalContent = toRawContent(displayContent, images)
+    if (!finalContent.trim()) {
       alert('请先输入笔记内容')
       return
     }
@@ -81,7 +106,7 @@ export default function NoteEdit() {
 
     setGeneratingTitle(true)
     try {
-      const generatedTitle = await generateTitle(content)
+      const generatedTitle = await generateTitle(finalContent)
       setTitle(generatedTitle)
     } catch (error) {
       alert('生成标题失败：' + error.message)
@@ -110,6 +135,14 @@ export default function NoteEdit() {
     setAllTags(updatedTags)
     setSelectedTags((prev) => [...prev, newTag.id])
     setNewTagName('')
+  }
+
+  // 处理 textarea 内容变化
+  const handleContentChange = (e) => {
+    const newDisplay = e.target.value
+    setDisplayContent(newDisplay)
+    // 同步更新 raw content
+    setContent(toRawContent(newDisplay, images))
   }
 
   // 处理图片上传
@@ -142,19 +175,25 @@ export default function NoteEdit() {
       if (textareaRef.current) {
         const start = textareaRef.current.selectionStart
         const end = textareaRef.current.selectionEnd
+        const placeholder = '\n\n[图片]\n\n'
+        const newDisplay = displayContent.substring(0, start) + placeholder + displayContent.substring(end)
         const newContent = content.substring(0, start) + imageMarkdown + content.substring(end)
+
+        setDisplayContent(newDisplay)
         setContent(newContent)
 
         // 恢复光标位置
         setTimeout(() => {
           if (textareaRef.current) {
-            textareaRef.current.selectionStart = start + imageMarkdown.length
-            textareaRef.current.selectionEnd = start + imageMarkdown.length
+            const cursorPos = start + placeholder.length
+            textareaRef.current.selectionStart = cursorPos
+            textareaRef.current.selectionEnd = cursorPos
             textareaRef.current.focus()
           }
         }, 0)
       } else {
         // 如果无法获取光标位置，则附加到末尾
+        setDisplayContent((prev) => prev + '\n\n[图片]\n\n')
         setContent((prev) => prev + imageMarkdown)
       }
     }
@@ -346,8 +385,8 @@ export default function NoteEdit() {
         {/* 正文编辑 */}
         <textarea
           ref={textareaRef}
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
+          value={displayContent}
+          onChange={handleContentChange}
           placeholder="记录你的思考..."
           className="w-full bg-transparent text-text-primary placeholder-text-secondary/30 outline-none resize-none min-h-[300px] leading-relaxed text-base"
         />

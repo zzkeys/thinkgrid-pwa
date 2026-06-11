@@ -1,19 +1,24 @@
 import { formatTime, getContentPreview, getTagName, getTagColor } from '../services/storage.js'
 
 export default function NoteCard({ note, onClick }) {
+  const hasTitle = note.title && note.title.trim()
+  const preview = getContentPreview(note.content)
+
   return (
     <div
       onClick={onClick}
       className="bg-dark-card rounded-2xl p-4 mb-3 cursor-pointer hover:bg-[#222222] transition-colors duration-200 animate-fade-in border border-dark-border/50"
     >
-      {/* 标题 */}
-      <h3 className="text-text-primary font-semibold text-base mb-1.5 line-clamp-1">
-        {note.title || '无标题'}
-      </h3>
+      {/* 标题 - 只有标题不为空时才显示 */}
+      {hasTitle && (
+        <h3 className="text-text-primary font-semibold text-base mb-1.5 line-clamp-1">
+          {note.title}
+        </h3>
+      )}
 
       {/* 内容预览 */}
-      <p className="text-text-secondary text-sm leading-relaxed line-clamp-2 mb-3">
-        {getContentPreview(note.content)}
+      <p className={`text-text-secondary text-sm leading-relaxed line-clamp-2 mb-3 ${!hasTitle ? 'mt-0' : ''}`}>
+        {preview}
       </p>
 
       {/* 标签 */}

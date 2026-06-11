@@ -11,6 +11,7 @@ export const AI_MODELS = {
     models: [
       { id: 'deepseek-chat', name: 'DeepSeek-V3' },
       { id: 'deepseek-reasoner', name: 'DeepSeek-R1' },
+      { id: 'deepseek-v4-flash', name: 'DeepSeek-V4-Flash' },
     ],
   },
   qwen: {
@@ -20,6 +21,8 @@ export const AI_MODELS = {
       { id: 'qwen-turbo', name: 'Qwen-Turbo' },
       { id: 'qwen-plus', name: 'Qwen-Plus' },
       { id: 'qwen-max', name: 'Qwen-Max' },
+      { id: 'qwen-coder-plus', name: 'Qwen-Coder-Plus' },
+      { id: 'qwen-long', name: 'Qwen-Long' },
     ],
   },
   zhipu: {
@@ -29,6 +32,8 @@ export const AI_MODELS = {
       { id: 'glm-4-flash', name: 'GLM-4-Flash' },
       { id: 'glm-4', name: 'GLM-4' },
       { id: 'glm-4-air', name: 'GLM-4-Air' },
+      { id: 'glm-4v-plus', name: 'GLM-4V-Plus' },
+      { id: 'glm-4-long', name: 'GLM-4-Long' },
     ],
   },
 }

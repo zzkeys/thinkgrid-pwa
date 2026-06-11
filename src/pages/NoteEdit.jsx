@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getNoteById, saveNote, getTags, getTagName } from '../services/storage.js'
 import { generateTitle, isAIConfigured } from '../services/ai.js'
@@ -7,6 +7,8 @@ export default function NoteEdit() {
   const navigate = useNavigate()
   const { id } = useParams()
   const isEditing = !!id
+  const fileInputRef = useRef(null)
+  const textareaRef = useRef(null)
 
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
@@ -15,6 +17,7 @@ export default function NoteEdit() {
   const [showTagSelector, setShowTagSelector] = useState(false)
   const [newTagName, setNewTagName] = useState('')
   const [generatingTitle, setGeneratingTitle] = useState(false)
+  const [showToolbar, setShowToolbar] = useState(false)
 
   useEffect(() => {
     setAllTags(getTags())
@@ -39,7 +42,7 @@ export default function NoteEdit() {
 
     saveNote({
       id: isEditing ? id : null,
-      title: title.trim() || '无标题',
+      title: title.trim(), // 允许为空
       content: content.trim(),
       tags: selectedTags,
     })
@@ -90,6 +93,58 @@ export default function NoteEdit() {
     setNewTagName('')
   }
 
+  // 处理图片上传
+  const handleImageUpload = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+
+    // 检查文件类型
+    if (!file.type.startsWith('image/')) {
+      alert('请选择图片文件')
+      return
+    }
+
+    // 检查文件大小（限制 2MB）
+    if (file.size > 2 * 1024 * 1024) {
+      alert('图片大小不能超过 2MB')
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const base64 = event.target.result
+      const imageMarkdown = `\n\n![图片](${base64})\n\n`
+
+      // 插入到光标位置
+      if (textareaRef.current) {
+        const start = textareaRef.current.selectionStart
+        const end = textareaRef.current.selectionEnd
+        const newContent = content.substring(0, start) + imageMarkdown + content.substring(end)
+        setContent(newContent)
+
+        // 恢复光标位置
+        setTimeout(() => {
+          if (textareaRef.current) {
+            textareaRef.current.selectionStart = start + imageMarkdown.length
+            textareaRef.current.selectionEnd = start + imageMarkdown.length
+            textareaRef.current.focus()
+          }
+        }, 0)
+      } else {
+        // 如果无法获取光标位置，则附加到末尾
+        setContent((prev) => prev + imageMarkdown)
+      }
+    }
+    reader.readAsDataURL(file)
+
+    // 清空 input，允许重复选择同一文件
+    e.target.value = ''
+  }
+
   return (
     <div className="min-h-full bg-dark-bg">
       {/* 顶部导航 */}
@@ -114,30 +169,51 @@ export default function NoteEdit() {
       {/* 编辑区域 */}
       <div className="px-5">
         {/* 标题输入 */}
+        <input
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="标题（可选）"
+          className="w-full bg-transparent text-text-primary text-xl font-semibold placeholder-text-secondary/30 outline-none py-2 mb-4"
+        />
+
+        {/* 工具栏 */}
         <div className="flex items-center gap-2 mb-4">
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="标题"
-            className="flex-1 bg-transparent text-text-primary text-xl font-semibold placeholder-text-secondary/30 outline-none py-2"
-          />
+          <button
+            onClick={() => setShowToolbar(!showToolbar)}
+            className="p-2 rounded-lgl bg-[#1A1A1A] text-text-secondary hover:text-text-primary transition-colors border border-dark-border/50"
+            title="工具栏"
+          >
+            ⋯
+          </button>
+          <button
+            onClick={handleImageUpload}
+            className="p-2 rounded-lgl bg-[#1A1A1A] text-text-secondary hover:text-text-primary transition-colors border border-dark-border/50"
+            title="上传图片"
+          >
+            📷
+          </button>
           <button
             onClick={handleGenerateTitle}
             disabled={generatingTitle}
-            className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-[#1A1A1A] text-coral-light text-xs font-medium border border-dark-border/50 hover:border-coral-light/30 transition-all disabled:opacity-50 flex items-center gap-1"
+            className="p-2 rounded-lgl bg-[#1A1A1A] text-coral-light hover:text-coral-light/80 transition-colors border border-dark-border/50 disabled:opacity-50 flex items-center gap-1"
+            title="AI 生成标题"
           >
             {generatingTitle ? (
-              <>
-                <span className="w-3 h-3 border-2 border-coral-light/30 border-t-coral-light rounded-full animate-spin" />
-                生成中
-              </>
+              <span className="w-3 h-3 border-2 border-coral-light/30 border-t-coral-light rounded-full animate-spin" />
             ) : (
-              <>
-                <span>✨</span> AI 生成标题
-              </>
+              <span>✨</span>
             )}
           </button>
+
+          {/* 隐藏的文件输入 */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            className="hidden"
+          />
         </div>
 
         {/* 标签选择 */}
@@ -224,6 +300,7 @@ export default function NoteEdit() {
 
         {/* 正文编辑 */}
         <textarea
+          ref={textareaRef}
           value={content}
           onChange={(e) => setContent(e.target.value)}
           placeholder="记录你的思考..."

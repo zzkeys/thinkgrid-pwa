@@ -142,6 +142,36 @@ export function getTagNoteCount(tagId) {
   return notes.filter((n) => n.tags && n.tags.includes(tagId)).length
 }
 
+// 按日期获取笔记
+export function getNotesByDate(date) {
+  const notes = getNotes()
+  const targetDate = new Date(date)
+  targetDate.setHours(0, 0, 0, 0)
+  
+  const nextDate = new Date(targetDate)
+  nextDate.setDate(nextDate.getDate() + 1)
+  
+  return notes.filter((note) => {
+    const noteDate = new Date(note.createdAt)
+    return noteDate >= targetDate && noteDate < nextDate
+  })
+}
+
+// 获取有笔记的日期列表（某个月）
+export function getDatesWithNotes(year, month) {
+  const notes = getNotes()
+  const datesWithNotes = new Set()
+  
+  notes.forEach((note) => {
+    const noteDate = new Date(note.createdAt)
+    if (noteDate.getFullYear() === year && noteDate.getMonth() === month) {
+      datesWithNotes.add(noteDate.getDay())
+    }
+  })
+  
+  return datesWithNotes
+}
+
 // 获取标签名称（通过 ID）
 export function getTagName(tagId) {
   const tags = getTags()

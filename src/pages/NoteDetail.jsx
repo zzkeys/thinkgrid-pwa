@@ -3,6 +3,21 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { getNoteById, deleteNote, getTagName, getTagColor, formatTime } from '../services/storage.js'
 import { generateQuickInsight } from '../services/ai.js'
 
+// 渲染内容（支持简单的 markdown 图片语法）
+function renderContent(content) {
+  if (!content) return '暂无内容'
+
+  // 将 markdown 图片语法转换为 HTML img 标签
+  const html = content
+    .replace(
+      /!\[([^\]]*)\]\((data:image\/[^)]+)\)/g,
+      '<img src="$2" alt="$1" class="max-w-full rounded-lg my-2" />'
+    )
+    .replace(/\n/g, '<br />')
+
+  return html
+}
+
 export default function NoteDetail() {
   const navigate = useNavigate()
   const { id } = useParams()
@@ -48,6 +63,8 @@ export default function NoteDetail() {
 
   if (!note) return null
 
+  const hasTitle = note.title && note.title.trim()
+
   return (
     <div className="min-h-full bg-dark-bg">
       {/* 顶部导航 */}
@@ -76,10 +93,12 @@ export default function NoteDetail() {
 
       {/* 笔记内容 */}
       <div className="px-5 pb-32">
-        {/* 标题 */}
-        <h1 className="text-text-primary text-2xl font-bold mb-3 leading-tight">
-          {note.title || '无标题'}
-        </h1>
+        {/* 标题 - 只有标题不为空时才显示 */}
+        {hasTitle && (
+          <h1 className="text-text-primary text-2xl font-bold mb-3 leading-tight">
+            {note.title}
+          </h1>
+        )}
 
         {/* 标签 */}
         {note.tags && note.tags.length > 0 && (
@@ -105,10 +124,11 @@ export default function NoteDetail() {
           {note.updatedAt !== note.createdAt && '（已编辑）'}
         </p>
 
-        {/* 正文 */}
-        <div className="text-text-primary leading-relaxed whitespace-pre-wrap text-base mb-8">
-          {note.content || '暂无内容'}
-        </div>
+        {/* 正文 - 支持图片显示 */}
+        <div
+          className="text-text-primary leading-relaxed text-base mb-8"
+          dangerouslySetInnerHTML={{ __html: renderContent(note.content) }}
+        />
 
         {/* AI 快洞察按钮 */}
         <button
@@ -171,7 +191,7 @@ export default function NoteDetail() {
         <div className="fixed inset-0 bg-black/60 flex items-end justify-center z-50" onClick={() => setShowDeleteConfirm(false)}>
           <div className="bg-dark-card rounded-t-3xl w-full max-w-md p-6 animate-fade-in" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-text-primary font-semibold text-lg mb-2">删除笔记</h3>
-            <p className="text-text-secondary text-sm mb-6">确定要删除「{note.title}」吗？此操作不可撤销。</p>
+            <p className="text-text-secondary text-sm mb-6">确定要删除「{note.title || '无标题'}」吗？此操作不可撤销。</p>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowDeleteConfirm(false)}

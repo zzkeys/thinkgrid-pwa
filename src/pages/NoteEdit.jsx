@@ -36,6 +36,10 @@ export default function NoteEdit() {
   const [newTagName, setNewTagName] = useState('')
   const [generatingTitle, setGeneratingTitle] = useState(false)
   const [showToolbar, setShowToolbar] = useState(false)
+  const [showLinkInput, setShowLinkInput] = useState(false)
+  const [linkText, setLinkText] = useState('')
+  const [linkUrl, setLinkUrl] = useState('')
+  const docInputRef = useRef(null)
 
   // 排版格式化：在光标位置插入 Markdown 语法
   const insertFormat = (prefix, suffix, placeholder) => {
@@ -61,7 +65,77 @@ export default function NoteEdit() {
     }
   }
 
-  // 提取内容中的图片
+  // 插入链接
+  const insertLink = () => {
+    if (textareaRef.current) {
+      const start = textareaRef.current.selectionStart
+      const end = textareaRef.current.selectionEnd
+      const selectedText = displayContent.substring(start, end) || '链接文字'
+      const url = linkUrl || 'https://'
+      const text = linkText || selectedText
+      const linkMarkdown = `[${text}](${url})`
+      const newDisplay = displayContent.substring(0, start) + linkMarkdown + displayContent.substring(end)
+      setDisplayContent(newDisplay)
+      setContent(toRawContent(newDisplay, images))
+
+      setTimeout(() => {
+        if (textareaRef.current) {
+          const cursorPos = start + linkMarkdown.length
+          textareaRef.current.selectionStart = cursorPos
+          textareaRef.current.selectionEnd = cursorPos
+          textareaRef.current.focus()
+        }
+      }, 0)
+
+      setShowLinkInput(false)
+      setLinkText('')
+      setLinkUrl('')
+    }
+  }
+
+  // 处理文档上传
+  const handleDocUpload = () => {
+    docInputRef.current?.click()
+  }
+
+  const handleDocChange = (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('文件大小不能超过 5MB')
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const base64 = event.target.result
+      const docMarkdown = `\n\n📎 [${file.name}](data:${file.type};base64,${base64.split(',')[1]})\n\n`
+
+      if (textareaRef.current) {
+        const start = textareaRef.current.selectionStart
+        const end = textareaRef.current.selectionEnd
+        const newDisplay = displayContent.substring(0, start) + `📎[${file.name}]` + displayContent.substring(end)
+        const newContent = content.substring(0, start) + docMarkdown + content.substring(end)
+        setDisplayContent(newDisplay)
+        setContent(newContent)
+
+        setTimeout(() => {
+          if (textareaRef.current) {
+            const pos = start + (`📎[${file.name}]`).length
+            textareaRef.current.selectionStart = pos
+            textareaRef.current.selectionEnd = pos
+            textareaRef.current.focus()
+          }
+        }, 0)
+      } else {
+        setDisplayContent((prev) => prev + `\n📎[${file.name}]\n`)
+        setContent((prev) => prev + docMarkdown)
+      }
+    }
+    reader.readAsDataURL(file)
+    e.target.value = ''
+  }
   const images = useMemo(() => {
     const imgRegex = /!\[([^\]]*)\]\((data:image\/[^)]+)\)/g
     const result = []
@@ -228,7 +302,7 @@ export default function NoteEdit() {
   }
 
   return (
-    <div className="min-h-full bg-dark-bg">
+    <div className="min-h-screen bg-dark-bg pb-20">
       {/* 顶部导航 */}
       <header className="flex items-center justify-between px-4 pt-4 pb-3">
         <button
@@ -265,22 +339,36 @@ export default function NoteEdit() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowToolbar(!showToolbar)}
-              className={`p-2 rounded-xl text-sm transition-colors border ${showToolbar ? 'bg-coral-light/20 border-coral-light/30 text-coral-light' : 'bg-[#1A1A1A] text-text-secondary hover:text-text-primary border-dark-border/50'}`}
+              className={`p-2 rounded-xl text-sm transition-colors border ${showToolbar ? 'bg-coral-light/20 border-coral-light/30 text-coral-light' : 'bg-dark-card text-text-secondary hover:text-text-primary border-dark-border/50'}`}
               title="排版工具"
             >
               ⋯
             </button>
             <button
               onClick={handleImageUpload}
-              className="p-2 rounded-xl bg-[#1A1A1A] text-text-secondary hover:text-text-primary transition-colors border border-dark-border/50"
+              className="p-2 rounded-xl bg-dark-card text-text-secondary hover:text-text-primary transition-colors border border-dark-border/50"
               title="上传图片"
             >
               📷
             </button>
             <button
+              onClick={() => setShowLinkInput(!showLinkInput)}
+              className="p-2 rounded-xl bg-dark-card text-text-secondary hover:text-text-primary transition-colors border border-dark-border/50"
+              title="插入链接"
+            >
+              🔗
+            </button>
+            <button
+              onClick={handleDocUpload}
+              className="p-2 rounded-xl bg-dark-card text-text-secondary hover:text-text-primary transition-colors border border-dark-border/50"
+              title="上传文档"
+            >
+              📎
+            </button>
+            <button
               onClick={handleGenerateTitle}
               disabled={generatingTitle}
-              className="p-2 rounded-xl bg-[#1A1A1A] text-coral-light hover:text-coral-light/80 transition-colors border border-dark-border/50 disabled:opacity-50 flex items-center gap-1"
+              className="p-2 rounded-xl bg-dark-card text-coral-light hover:text-coral-light/80 transition-colors border border-dark-border/50 disabled:opacity-50 flex items-center gap-1"
               title="AI 生成标题"
             >
               {generatingTitle ? (
@@ -298,21 +386,57 @@ export default function NoteEdit() {
               onChange={handleFileChange}
               className="hidden"
             />
+            <input
+              ref={docInputRef}
+              type="file"
+              onChange={handleDocChange}
+              className="hidden"
+            />
           </div>
+
+          {/* 链接插入输入框 */}
+          {showLinkInput && (
+            <div className="mt-2 bg-dark-card rounded-xl p-3 border border-dark-border/50 animate-fade-in">
+              <input
+                type="text"
+                value={linkText}
+                onChange={(e) => setLinkText(e.target.value)}
+                placeholder="链接显示文字（可选）"
+                className="w-full bg-dark-bg rounded-lg px-3 py-2 text-sm text-text-primary outline-none border border-dark-border/30 focus:border-coral-light/50 mb-2 placeholder-text-secondary/30"
+              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={linkUrl}
+                  onChange={(e) => setLinkUrl(e.target.value)}
+                  placeholder="https://..."
+                  className="flex-1 bg-dark-bg rounded-lg px-3 py-2 text-sm text-text-primary outline-none border border-dark-border/30 focus:border-coral-light/50 placeholder-text-secondary/30"
+                  onKeyDown={(e) => e.key === 'Enter' && insertLink()}
+                />
+                <button
+                  onClick={insertLink}
+                  disabled={!linkUrl.trim()}
+                  className="px-4 py-2 rounded-lg bg-coral-gradient text-white text-sm font-medium disabled:opacity-40"
+                >
+                  插入
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* 排版工具栏（展开） */}
           {showToolbar && (
             <div className="mt-2 flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-hide animate-fade-in">
               <button
                 onClick={() => insertFormat('**', '**', '粗体文字')}
-                className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-[#1A1A1A] text-text-secondary text-xs font-bold hover:text-text-primary hover:bg-[#252525] border border-dark-border/30 transition-all"
+                className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-dark-card text-text-secondary text-xs font-bold hover:text-text-primary hover:bg-dark-card/80 border border-dark-border/30 transition-all"
                 title="粗体"
               >
                 B
               </button>
               <button
                 onClick={() => insertFormat('*', '*', '斜体文字')}
-                className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-[#1A1A1A] text-text-secondary text-xs italic hover:text-text-primary hover:bg-[#252525] border border-dark-border/30 transition-all"
+                className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-dark-card text-text-secondary text-xs italic hover:text-text-primary hover:bg-dark-card/80 border border-dark-border/30 transition-all"
                 title="斜体"
               >
                 I
@@ -326,21 +450,21 @@ export default function NoteEdit() {
               </button>
               <button
                 onClick={() => insertFormat('- ', '', '列表项')}
-                className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-[#1A1A1A] text-text-secondary text-xs hover:text-text-primary hover:bg-[#252525] border border-dark-border/30 transition-all"
+                className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-dark-card hover:bg-dark-card/80 border border-dark-border/30 transition-all"
                 title="无序列表"
               >
                 ≡
               </button>
               <button
                 onClick={() => insertFormat('1. ', '', '有序列表')}
-                className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-[#1A1A1A] text-text-secondary text-xs hover:text-text-primary hover:bg-[#252525] border border-dark-border/30 transition-all"
+                className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-dark-card hover:bg-dark-card/80 border border-dark-border/30 transition-all"
                 title="有序列表"
               >
                 1.
               </button>
               <button
                 onClick={() => insertFormat('> ', '', '引用内容')}
-                className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-[#1A1A1A] text-text-secondary text-xs hover:text-text-primary hover:bg-[#252525] border border-dark-border/30 transition-all"
+                className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-dark-card hover:bg-dark-card/80 border border-dark-border/30 transition-all"
                 title="引用"
               >
                 "
@@ -355,7 +479,7 @@ export default function NoteEdit() {
               <div className="flex-shrink-0 w-px h-6 bg-dark-border/50 mx-0.5" />
               <button
                 onClick={() => insertFormat('---\n', '', '')}
-                className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-[#1A1A1A] text-text-secondary text-xs hover:text-text-primary hover:bg-[#252525] border border-dark-border/30 transition-all"
+                className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-dark-card hover:bg-dark-card/80 border border-dark-border/30 transition-all"
                 title="分割线"
               >
                 ――
@@ -436,7 +560,7 @@ export default function NoteEdit() {
 
           {/* 标签选择器 */}
           {showTagSelector && (
-            <div className="bg-[#141414] rounded-xl p-3 mb-2 border border-dark-border/50">
+            <div className="bg-dark-card rounded-xl p-3 mb-2 border border-dark-border/50">
               <div className="flex flex-wrap gap-1.5 mb-3">
                 {allTags.map((tag) => (
                   <button

@@ -133,7 +133,7 @@ function App() {
 
       {/* 退出提示 Toast */}
       {showExitToast && (
-        <div className="fixed bottom-24 left-1/2 transform -translate-x-1/2 bg-[#1A1A1A] text-text-primary px-5 py-3 rounded-xl shadow-lg z-50 text-sm border border-dark-border/50">
+        <div className="fixed bottom-24 left-1/2 transform -translate-x-1/2 bg-dark-card text-text-primary px-5 py-3 rounded-xl shadow-lg z-50 text-sm border border-dark-border/50">
           再按一次退出应用
         </div>
       )}
@@ -147,7 +147,7 @@ function App() {
             <div className="flex gap-3">
               <button
                 onClick={() => handleEditConfirm(false)}
-                className="flex-1 py-3.5 rounded-xl bg-[#0F0F0F] text-text-secondary font-medium text-sm border border-dark-border/50 hover:border-dark-border transition-colors"
+                className="flex-1 py-3.5 rounded-xl bg-dark-card text-text-secondary font-medium text-sm border border-dark-border/50 hover:border-dark-border transition-colors"
               >
                 取消
               </button>

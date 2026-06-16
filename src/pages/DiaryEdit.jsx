@@ -42,14 +42,22 @@ export default function DiaryEdit() {
     }
   }, [])
 
-  // 格式化日期显示
+  // 格式化日期显示（中文格式：2026年06月16日）
   const formatDateDisplay = (date) => {
-    return `${date.getDate()} ${date.getFullYear()}年${String(date.getMonth() + 1).padStart(2, '0')}月`
+    const y = date.getFullYear()
+    const m = String(date.getMonth() + 1).padStart(2, '0')
+    const d = String(date.getDate()).padStart(2, '0')
+    return `${y}年${m}月${d}日`
   }
 
   // 处理相机拍照
   const handleCamera = async () => {
     try {
+      if (!Capacitor.isNativePlatform()) {
+        // Web 环境降级：使用文件选择
+        fileInputRef.current?.click()
+        return
+      }
       const photo = await Camera.getPhoto({
         quality: 90,
         allowEditing: false,
@@ -61,25 +69,37 @@ export default function DiaryEdit() {
         setImages((prev) => [...prev, { src: imgDataUrl, alt: '照片' }])
       }
     } catch (e) {
-      console.log('Camera cancelled')
+      console.log('Camera error:', e.message)
+      // 如果相机不可用，尝试使用相册
+      try {
+        fileInputRef.current?.click()
+      } catch (e2) {
+        alert('相机功能暂时不可用')
+      }
     }
   }
 
   // 处理相册选择
   const handleAlbum = async () => {
     try {
-      const photo = await Camera.getPhoto({
-        quality: 90,
-        allowEditing: false,
-        resultType: CameraResultType.Base64,
-        source: CameraSource.Photos,
-      })
-      if (photo.base64String) {
-        const imgDataUrl = `data:image/jpeg;base64,${photo.base64String}`
-        setImages((prev) => [...prev, { src: imgDataUrl, alt: '照片' }])
+      if (Capacitor.isNativePlatform()) {
+        const photo = await Camera.getPhoto({
+          quality: 90,
+          allowEditing: false,
+          resultType: CameraResultType.Base64,
+          source: CameraSource.Photos,
+        })
+        if (photo.base64String) {
+          const imgDataUrl = `data:image/jpeg;base64,${photo.base64String}`
+          setImages((prev) => [...prev, { src: imgDataUrl, alt: '照片' }])
+        }
+      } else {
+        fileInputRef.current?.click()
       }
     } catch (e) {
-      console.log('Album selection cancelled')
+      console.log('Album error:', e.message)
+      // 降级到文件选择
+      fileInputRef.current?.click()
     }
   }
 
@@ -152,7 +172,7 @@ export default function DiaryEdit() {
           disabled={publishing || (!content.trim() && images.length === 0)}
           className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
             publishing || (!content.trim() && images.length === 0)
-              ? 'bg-[#1A1A1A] text-text-secondary/30'
+              ? 'bg-dark-card text-text-secondary/30'
               : 'bg-coral-gradient text-white shadow-lg shadow-coral-light/20 active:scale-95'
           }`}
         >
@@ -293,7 +313,7 @@ export default function DiaryEdit() {
                         key={w.id}
                         onClick={() => { setWeather(w.id); setShowWeatherPicker(false) }}
                         className={`flex flex-col items-center p-2 rounded-xl transition-all ${
-                          weather === w.id ? 'bg-blue-500/20 ring-1 ring-blue-400/30' : 'hover:bg-[#2A2A2A]'
+                          weather === w.id ? 'bg-blue-500/20 ring-1 ring-blue-400/30' : 'hover:bg-dark-card'
                         }`}
                       >
                         <span className="text-lg">{w.icon}</span>

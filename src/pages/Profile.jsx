@@ -180,15 +180,15 @@ export default function Profile() {
 
           {/* 统计数据 */}
           <div className="grid grid-cols-3 gap-2">
-            <div className="bg-[#0F0F0F]/60 rounded-xl p-3 text-center">
+            <div className="bg-dark-card/60 rounded-xl p-3 text-center">
               <p className="text-text-primary text-xl font-bold">{stats.noteCount}</p>
               <p className="text-text-secondary/60 text-xs mt-0.5">笔记</p>
             </div>
-            <div className="bg-[#0F0F0F]/60 rounded-xl p-3 text-center">
+            <div className="bg-dark-card/60 rounded-xl p-3 text-center">
               <p className="text-text-primary text-xl font-bold">{stats.tagCount}</p>
               <p className="text-text-secondary/60 text-xs mt-0.5">标签</p>
             </div>
-            <div className="bg-[#0F0F0F]/60 rounded-xl p-3 text-center">
+            <div className="bg-dark-card/60 rounded-xl p-3 text-center">
               <p className="text-text-primary text-xl font-bold">{stats.daysUsed}</p>
               <p className="text-text-secondary/60 text-xs mt-0.5">天</p>
             </div>
@@ -352,7 +352,7 @@ export default function Profile() {
                     value={tempApiKey}
                     onChange={(e) => { setTempApiKey(e.target.value); setTestStatus(null) }}
                     placeholder="输入您的 API Key"
-                    className="w-full bg-[#1A1A1A] rounded-xl px-4 py-2.5 text-sm text-text-primary outline-none border border-dark-border/50 focus:border-coral-light/50 transition-colors pr-12"
+                    className="w-full bg-dark-card rounded-xl px-4 py-2.5 text-sm text-text-primary outline-none border border-dark-border/50 focus:border-coral-light/50 transition-colors pr-12"
                   />
                   <button
                     onClick={() => setShowKey(!showKey)}
@@ -369,7 +369,7 @@ export default function Profile() {
               <label className="text-text-secondary text-xs mb-3 block font-medium">AI 模型</label>
               <button
                 onClick={() => setShowModelSelect(true)}
-                className="w-full bg-[#0F0F0F] rounded-2xl p-4 border border-dark-border/30 flex items-center justify-between hover:border-dark-border/60 transition-colors"
+                className="w-full bg-dark-card rounded-2xl p-4 border border-dark-border/30 flex items-center justify-between hover:border-dark-border/60 transition-colors"
               >
                 <div className="flex items-center gap-3">
                   <span className="text-sm">🧠</span>
@@ -387,7 +387,7 @@ export default function Profile() {
             {/* 自定义提示词 */}
             <div className="mb-6">
               <label className="text-text-secondary text-xs mb-3 block font-medium">自定义提示词</label>
-              <div className="bg-[#0F0F0F] rounded-2xl p-4 border border-dark-border/30">
+              <div className="bg-dark-card rounded-2xl p-4 border border-dark-border/30">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-text-primary text-sm">启用自定义提示词</span>
                   <button
@@ -407,7 +407,7 @@ export default function Profile() {
                     onChange={(e) => setTempCustomPrompt(e.target.value)}
                     placeholder="输入自定义的 AI 提示词..."
                     rows={3}
-                    className="w-full bg-[#1A1A1A] rounded-xl px-4 py-2.5 text-sm text-text-primary outline-none border border-dark-border/50 focus:border-coral-light/50 transition-colors resize-none"
+                    className="w-full bg-dark-card rounded-xl px-4 py-2.5 text-sm text-text-primary outline-none border border-dark-border/50 focus:border-coral-light/50 transition-colors resize-none"
                   />
                 )}
               </div>
@@ -446,7 +446,7 @@ export default function Profile() {
             )}
 
             {/* 温馨提示 */}
-            <div className="bg-[#0F0F0F]/60 rounded-xl p-4 mb-6 border border-dark-border/30">
+            <div className="bg-dark-card/60 rounded-xl p-4 mb-6 border border-dark-border/30">
               <p className="text-coral-light text-[11px] leading-relaxed mb-1">💡 温馨提示</p>
               <ul className="text-text-secondary/50 text-[11px] leading-relaxed space-y-1 list-disc list-inside">
                 <li>选择模型后会自动填充 API 地址</li>
@@ -459,7 +459,7 @@ export default function Profile() {
             <div className="flex gap-3">
               <button
                 onClick={() => setShowSettings(false)}
-                className="flex-1 py-3 rounded-xl bg-[#0F0F0F] text-text-secondary font-medium text-sm border border-dark-border/50 hover:border-dark-border transition-colors"
+                className="flex-1 py-3 rounded-xl bg-dark-card text-text-secondary font-medium text-sm border border-dark-border/50 hover:border-dark-border transition-colors"
               >
                 取消
               </button>
@@ -498,7 +498,7 @@ export default function Profile() {
                   className={`w-full py-3 px-4 rounded-xl text-left text-sm transition-all ${
                     tempAIModel === model.id
                       ? 'bg-coral-light/20 text-coral-light border border-coral-light/30'
-                      : 'bg-[#0F0F0F] text-text-primary border border-dark-border/30 hover:border-dark-border/60'
+                      : 'bg-dark-card text-text-primary border border-dark-border/30 hover:border-dark-border/60'
                   }`}
                 >
                   {model.name}
@@ -558,7 +558,7 @@ export default function Profile() {
               <label className="text-text-secondary text-xs mb-2 block">导入数据</label>
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full py-3 rounded-xl bg-[#0F0F0F] text-text-primary text-sm font-medium border border-dark-border/50 hover:border-coral-light/30 transition-all flex items-center justify-center gap-2"
+                className="w-full py-3 rounded-xl bg-dark-card text-text-primary text-sm font-medium border border-dark-border/50 hover:border-coral-light/30 transition-all flex items-center justify-center gap-2"
               >
                 <span>📥</span> 从 JSON 备份导入
               </button>
@@ -595,13 +595,13 @@ export default function Profile() {
       )}
 
       {/* 导出类型选择弹窗 */}
-      {showExportType && (
-        <div className="fixed inset-0 bg-black/60 flex items-end justify-center z-[60]" onClick={() => setShowExportType(null)}>
+      {pendingExport && (
+        <div className="fixed inset-0 bg-black/60 flex items-end justify-center z-[60]" onClick={() => setPendingExport(null)}>
           <div className="bg-dark-card rounded-t-3xl w-full max-w-md p-6 animate-fade-in" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-text-primary font-semibold text-lg">选择导出范围</h3>
               <button
-                onClick={() => setShowExportType(null)}
+                onClick={() => setPendingExport(null)}
                 className="w-8 h-8 rounded-full bg-dark-card flex items-center justify-center text-text-secondary hover:text-text-primary transition-colors"
               >
                 ✕

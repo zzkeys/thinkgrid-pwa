@@ -187,7 +187,7 @@ export default function TodoPage() {
                         onChange={(e) => handleToggleReminder({ ...todo, reminderEnabled: e.target.checked })}
                         className="sr-only peer"
                       />
-                      <div className="w-8 h-5 bg-[#2A2A2A] peer-focus:outline-none rounded-full peer peer-checked:bg-coral-light/30 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-text-secondary/40 after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full peer-checked:after:bg-coral-light"></div>
+                      <div className="w-8 h-5 bg-dark-border peer-focus:outline-none rounded-full peer peer-checked:bg-coral-light/30 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-text-secondary/40 after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full peer-checked:after:bg-coral-light"></div>
                     </label>
 
                     {/* 删除按钮 */}

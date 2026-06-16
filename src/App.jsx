@@ -45,9 +45,9 @@ function App() {
         listener = await CapacitorApp.addListener('backButton', ({ canGoBack }) => {
           const currentShowEditConfirm = showEditConfirmRef.current
           const currentShowExitToast = showExitToastRef.current
-          // 在 Capacitor WebView 中，使用 window.location.pathname 获取当前路径
-          // React Router 使用 history API 导航，window.location 会同步更新
           const currentPath = window.location.pathname
+
+          console.log('[ThinkGrid] backButton', { currentPath, canGoBack, currentShowEditConfirm, currentShowExitToast })
 
           // 如果正在显示编辑确认框，则关闭它
           if (currentShowEditConfirm) {
@@ -57,7 +57,6 @@ function App() {
 
           // 如果正在显示退出提示，则退出应用
           if (currentShowExitToast) {
-            // 只在原生平台退出应用
             if (Capacitor.isNativePlatform()) {
               CapacitorApp.exitApp()
             }
@@ -66,9 +65,7 @@ function App() {
 
           // 根据当前路由处理返回逻辑
           if (currentPath === '/' || currentPath === '' || currentPath === '#/') {
-            // 在首页，显示退出提示
             setShowExitToast(true)
-            // 2秒后自动隐藏提示
             if (exitTimerRef.current) {
               clearTimeout(exitTimerRef.current)
             }
@@ -76,15 +73,22 @@ function App() {
               setShowExitToast(false)
             }, 2000)
           } else if (currentPath === '/note/new' || currentPath.startsWith('/note/edit') || currentPath === '/diary/new') {
-            // 在编辑/日记页面，显示自定义确认框
             setShowEditConfirm(true)
           } else {
             // 在其他页面，直接返回上一页
-            navigate(-1)
+            try {
+              navigate(-1)
+            } catch (e) {
+              console.error('[ThinkGrid] navigate(-1) failed, fallback to history.back()', e)
+              if (window.history.length > 1) {
+                window.history.back()
+              }
+            }
           }
         })
+        console.log('[ThinkGrid] backButton listener added')
       } catch (e) {
-        console.error('Failed to add back button listener:', e)
+        console.error('[ThinkGrid] Failed to add back button listener:', e)
       }
     }
 
@@ -93,6 +97,7 @@ function App() {
     return () => {
       if (listener) {
         listener.remove()
+        console.log('[ThinkGrid] backButton listener removed')
       }
       if (exitTimerRef.current) {
         clearTimeout(exitTimerRef.current)

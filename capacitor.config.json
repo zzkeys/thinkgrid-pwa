@@ -1,5 +1,10 @@
 {
   "appId": "com.thinkgrid.app",
   "appName": "thinkgrid",
-  "webDir": "dist"
+  "webDir": "dist",
+  "plugins": {
+    "App": {
+      "backgroundMode": "webview"
+    }
+  }
 }

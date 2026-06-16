@@ -12,7 +12,7 @@ export default function BottomNav() {
   const location = useLocation()
 
   // 在某些页面隐藏底部导航
-  const hidePaths = ['/note/new', '/note/edit']
+  const hidePaths = ['/note/new', '/note/edit', '/diary/new', '/todos']
   const shouldHide = hidePaths.some((p) => location.pathname.startsWith(p))
 
   if (shouldHide) return null

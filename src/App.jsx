@@ -9,6 +9,8 @@ import Tags from './pages/Tags.jsx'
 import Profile from './pages/Profile.jsx'
 import AISelect from './pages/AISelect.jsx'
 import AIResult from './pages/AIResult.jsx'
+import DiaryEdit from './pages/DiaryEdit.jsx'
+import TodoPage from './pages/TodoPage.jsx'
 import BottomNav from './components/BottomNav.jsx'
 
 function App() {
@@ -73,8 +75,8 @@ function App() {
             exitTimerRef.current = setTimeout(() => {
               setShowExitToast(false)
             }, 2000)
-          } else if (currentPath === '/note/new' || currentPath.startsWith('/note/edit')) {
-            // 在编辑页面，显示自定义确认框
+          } else if (currentPath === '/note/new' || currentPath.startsWith('/note/edit') || currentPath === '/diary/new') {
+            // 在编辑/日记页面，显示自定义确认框
             setShowEditConfirm(true)
           } else {
             // 在其他页面，直接返回上一页
@@ -117,6 +119,8 @@ function App() {
           <Route path="/profile" element={<Profile />} />
           <Route path="/ai/select" element={<AISelect />} />
           <Route path="/ai/result" element={<AIResult />} />
+          <Route path="/diary/new" element={<DiaryEdit />} />
+          <Route path="/todos" element={<TodoPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>

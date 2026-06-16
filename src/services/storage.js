@@ -1,6 +1,7 @@
 // 本地存储服务
 import { Capacitor } from '@capacitor/core'
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem'
+import { LocalNotifications } from '@capacitor/local-notifications'
 
 const STORAGE_KEYS = {
   NOTES: 'thinkgrid_notes',
@@ -542,19 +543,53 @@ function saveTodos(todos) {
 }
 
 // 添加待办事项
-export function addTodo(text) {
+export function addTodo(text, reminderAt = null) {
   if (!text || !text.trim()) return null
   const todos = getTodos()
+  const now = Date.now()
   const newTodo = {
-    id: Date.now().toString(36) + Math.random().toString(36).substring(2, 8),
+    id: now.toString(36) + Math.random().toString(36).substring(2, 8),
     text: text.trim(),
     completed: false,
-    createdAt: Date.now(),
+    createdAt: now,
     completedAt: null,
+    reminderAt: reminderAt, // 提醒时间戳（null = 不提醒）
+    reminderEnabled: !!reminderAt,
+    notificationId: null,
+  }
+  // 设置本地通知
+  if (newTodo.reminderEnabled && reminderAt && reminderAt > now) {
+    scheduleTodoNotification(newTodo)
   }
   todos.unshift(newTodo)
   saveTodos(todos)
   return newTodo
+}
+
+// 更新待办事项
+export function updateTodo(id, updates) {
+  const todos = getTodos()
+  const index = todos.findIndex((t) => t.id === id)
+  if (index < 0) return null
+
+  const oldTodo = todos[index]
+  const updatedTodo = { ...oldTodo, ...updates }
+  todos[index] = updatedTodo
+  saveTodos(todos)
+
+  // 如果提醒时间变了，重新设置通知
+  if ('reminderAt' in updates || 'reminderEnabled' in updates) {
+    if (updatedTodo.reminderEnabled && updatedTodo.reminderAt && !updatedTodo.completed) {
+      scheduleTodoNotification(updatedTodo)
+    } else if (oldTodo.notificationId) {
+      cancelTodoNotification(oldTodo.notificationId)
+      updatedTodo.notificationId = null
+      todos[index] = updatedTodo
+      saveTodos(todos)
+    }
+  }
+
+  return updatedTodo
 }
 
 // 切换待办完成状态
@@ -564,6 +599,15 @@ export function toggleTodo(id) {
   if (!todo) return null
   todo.completed = !todo.completed
   todo.completedAt = todo.completed ? Date.now() : null
+
+  // 完成时取消通知，重新打开未完成且有提醒时恢复
+  if (todo.completed && todo.notificationId) {
+    cancelTodoNotification(todo.notificationId)
+    todo.notificationId = null
+  } else if (!todo.completed && todo.reminderEnabled && todo.reminderAt && todo.reminderAt > Date.now()) {
+    scheduleTodoNotification(todo)
+  }
+
   saveTodos(todos)
   return todo
 }
@@ -578,7 +622,178 @@ export function deleteTodo(id) {
 // 清除已完成的待办
 export function clearCompletedTodos() {
   const todos = getTodos()
+  const completed = todos.filter((t) => t.completed)
+  // 取消已完成待办的通知
+  completed.forEach((t) => {
+    if (t.notificationId) cancelTodoNotification(t.notificationId)
+  })
   const remaining = todos.filter((t) => !t.completed)
   saveTodos(remaining)
   return todos.length - remaining.length
+}
+
+// ==================== 待办通知功能 ====================
+
+// 安排本地通知
+async function scheduleTodoNotification(todo) {
+  try {
+    // 先取消旧通知
+    if (todo.notificationId) {
+      await cancelTodoNotification(todo.notificationId)
+    }
+
+    if (!Capacitor.isNativePlatform()) return
+
+    const notifications = await LocalNotifications.requestPermissions()
+    if (!notifications.display) return
+
+    const now = Date.now()
+    const scheduleTime = new Date(todo.reminderAt).getTime()
+
+    if (scheduleTime <= now) return
+
+    await LocalNotifications.schedule({
+      notifications: [
+        {
+          id: parseInt(todo.id, 36) || Math.abs(hashCode(todo.id)) % 100000,
+          title: '⏰ 待办提醒',
+          body: todo.text,
+          schedule: { at: new Date(scheduleTime) },
+          sound: 'default',
+          smallIcon: 'ic_stat_notify',
+          channelId: 'thinkgrid_todos',
+          channelName: '思格待办提醒',
+        },
+      ],
+    })
+
+    todo.notificationId = String(parseInt(todo.id, 36) || Math.abs(hashCode(todo.id)) % 100000)
+  } catch (e) {
+    console.error('Schedule notification failed:', e)
+  }
+}
+
+async function cancelTodoNotification(notificationId) {
+  try {
+    if (!Capacitor.isNativePlatform()) return
+    await LocalNotifications.cancel({ notifications: [{ id: Number(notificationId) }] })
+  } catch (e) {
+    console.error('Cancel notification failed:', e)
+  }
+}
+
+function hashCode(str) {
+  let hash = 0
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0
+  }
+  return hash
+}
+
+// ==================== 日记相关 ====================
+
+// 笔记类型常量
+export const NOTE_TYPES = {
+  NORMAL: 'note',      // 普通笔记
+  DIARY: 'diary',      // 日记
+}
+
+// 天气选项
+export const WEATHER_OPTIONS = [
+  { id: 'sunny', icon: '☀️', label: '晴' },
+  { id: 'cloudy', icon: '☁️', label: '多云' },
+  { id: 'rainy', icon: '🌧️', label: '雨' },
+  { id: 'snowy', icon: '❄️', label: '雪' },
+  { id: 'windy', icon: '💨', label: '风' },
+  { id: 'thunder', icon: '⛈️', label: '雷' },
+  { id: 'foggy', icon: '🌫️', label: '雾' },
+]
+
+// 心情选项
+export const MOOD_OPTIONS = [
+  { id: 'happy', emoji: '😊', label: '开心', color: '#FFD93D' },
+  { id: 'sad', emoji: '😢', label: '难过', color: '#6BCB77' },
+  { id: 'angry', emoji: '😠', label: '生气', color: '#FF6B6B' },
+  { id: 'calm', emoji: '😌', label: '平静', color: '#4D96FF' },
+  { id: 'excited', emoji: '🤩', label: '兴奋', color: '#FF9E00' },
+  { id: 'tired', emoji: '😴', label: '疲惫', color: '#A8A8A8' },
+  { id: 'anxious', emoji: '😰', label: '焦虑', color: '#C9B1FF' },
+  { id: 'love', emoji: '🥰', label: '甜蜜', color: '#FF6BD6' },
+]
+
+// 获取日记列表（按日期倒序）
+export function getDiaries() {
+  const notes = getNotes()
+  return notes
+    .filter((n) => n.type === NOTE_TYPES.DIARY)
+    .sort((a, b) => b.createdAt - a.createdAt)
+}
+
+// 获取今日日记
+export function getTodayDiary() {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const tomorrow = new Date(today)
+  tomorrow.setDate(tomorrow.getDate() + 1)
+
+  const diaries = getDiaries()
+  return diaries.find((d) => {
+    const dDate = new Date(d.createdAt)
+    return dDate >= today && dDate < tomorrow
+  }) || null
+}
+
+// 保存日记（使用 saveNote，自动添加 type: 'diary'）
+export function saveDiary(diaryData) {
+  return saveNote({
+    ...diaryData,
+    type: NOTE_TYPES.DIARY,
+  })
+}
+
+// 获取日记统计（连续写日记天数等）
+export function getDiaryStats() {
+  const diaries = getDiaries()
+  if (diaries.length === 0) return { total: 0, streak: 0, thisMonth: 0 }
+
+  // 统计总篇数
+  const total = diaries.length
+
+  // 本月篇数
+  const now = new Date()
+  const thisMonth = diaries.filter((d) => {
+    const dDate = new Date(d.createdAt)
+    return dDate.getMonth() === now.getMonth() && dDate.getFullYear() === now.getFullYear()
+  }).length
+
+  // 计算连续天数
+  let streak = 0
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const checkDate = new Date(today)
+
+  while (true) {
+    const dayStart = checkDate.getTime()
+    const nextDay = new Date(checkDate)
+    nextDay.setDate(nextDay.getDate() + 1)
+
+    const hasDiary = diaries.some((d) => {
+      const dDate = d.createdAt
+      return dDate >= dayStart && dDate < nextDay.getTime()
+    })
+
+    if (hasDiary) {
+      streak++
+      checkDate.setDate(checkDate.getDate() - 1)
+    } else {
+      // 如果是今天还没有写，不算断签
+      if (streak === 0 && checkDate.getTime() === today.getTime()) {
+        checkDate.setDate(checkDate.getDate() - 1)
+        continue
+      }
+      break
+    }
+  }
+
+  return { total, streak, thisMonth }
 }

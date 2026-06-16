@@ -90,7 +90,7 @@ export default function TodoPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] flex flex-col">
+    <div className="min-h-screen bg-dark-bg flex flex-col">
       {/* 顶部导航 */}
       <div className="flex items-center justify-between px-5 py-3 border-b border-dark-border/30">
         <button onClick={() => navigate(-1)} className="text-text-secondary text-lg">‹</button>
@@ -109,8 +109,8 @@ export default function TodoPage() {
           onClick={() => setFilter('pending')}
           className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
             filter === 'pending'
-              ? 'bg-[#FFFFFF] text-[#0A0A0A]'
-              : 'bg-[#1A1A1A] text-text-secondary hover:text-text-primary'
+          ? 'bg-dark-bg text-coral-light'
+                  : 'bg-dark-card text-text-secondary hover:text-text-primary'
           }`}
         >
           进行中
@@ -119,8 +119,8 @@ export default function TodoPage() {
           onClick={() => setFilter('completed')}
           className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
             filter === 'completed'
-              ? 'bg-[#1A1A1A] text-text-primary ring-1 ring-dark-border/50'
-              : 'bg-transparent text-text-secondary hover:text-text-primary'
+          ? 'bg-dark-card text-text-primary ring-1 ring-dark-border/50'
+                  : 'bg-transparent text-text-secondary hover:text-text-primary'
           }`}
         >
           已完成 ({completedCount})
@@ -233,19 +233,18 @@ export default function TodoPage() {
           <div className="bg-dark-card rounded-t-3xl w-full max-w-lg p-6 animate-slide-up" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-text-primary mb-4">添加待办</h3>
 
-            <input
-              ref={inputRef}
-              type="text"
-              value={newText}
-              onChange={(e) => setNewText(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleAddTodo()}
-              placeholder="输入待办内容..."
-              autoFocus
-              className="w-full bg-[#0F0F0F] rounded-xl px-4 py-3 text-sm text-text-primary placeholder-text-secondary/30 outline-none border border-dark-border/30 focus:border-coral-light/40 mb-4"
-            />
+              <input
+                type="text"
+                value={newText}
+                onChange={(e) => setNewText(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleAddTodo()}
+                placeholder="输入待办内容..."
+                autoFocus
+                className="w-full bg-dark-bg/50 rounded-xl px-4 py-3 text-sm text-text-primary placeholder-text-secondary/30 outline-none border border-dark-border/30 focus:border-coral-light/40 mb-4"
+              />
 
             {/* 提醒设置 */}
-            <div className="flex items-center justify-between mb-5 p-3 bg-[#0F0F0F] rounded-xl">
+            <div className="flex items-center justify-between mb-5 p-3 bg-dark-bg/50 rounded-xl">
               <div className="flex items-center gap-2">
                 <span className="text-sm">🔔 提醒</span>
                 <span className="text-xs text-text-secondary/50">{newReminderEnabled ? '开启' : '关闭'}</span>
@@ -257,7 +256,7 @@ export default function TodoPage() {
                   onChange={(e) => setNewReminderEnabled(e.target.checked)}
                   className="sr-only peer"
                 />
-                <div className="w-9 h-5 bg-[#2A2A2A] peer-focus:outline-none rounded-full peer peer-checked:bg-coral-light/30 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-text-secondary/40 after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full peer-checked:after:bg-coral-light"></div>
+                <div className="w-9 h-5 bg-dark-card peer-focus:outline-none rounded-full peer peer-checked:bg-coral-light/30 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-text-secondary/40 after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full peer-checked:after:bg-coral-light"></div>
               </label>
             </div>
 
@@ -269,7 +268,7 @@ export default function TodoPage() {
                   value={newReminderDate}
                   onChange={(e) => setNewReminderDate(e.target.value)}
                   min={minDateTime()}
-                  className="w-full bg-[#0F0F0F] rounded-xl px-4 py-2.5 text-sm text-text-primary outline-none border border-dark-border/30 focus:border-coral-light/40"
+                  className="w-full bg-dark-bg/50 rounded-xl px-4 py-2.5 text-sm text-text-primary outline-none border border-dark-border/30 focus:border-coral-light/40"
                 />
               </div>
             )}
@@ -277,7 +276,7 @@ export default function TodoPage() {
             <div className="flex gap-3">
               <button
                 onClick={() => setShowAddModal(false)}
-                className="flex-1 py-3 rounded-xl bg-[#0F0F0F] text-text-secondary font-medium text-sm border border-dark-border/30"
+                className="flex-1 py-3 rounded-xl bg-dark-card text-text-secondary font-medium text-sm border border-dark-border/30"
               >
                 取消
               </button>

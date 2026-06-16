@@ -135,7 +135,7 @@ export default function DiaryEdit() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] flex flex-col">
+    <div className="min-h-screen bg-dark-bg flex flex-col">
       {/* 顶部导航栏 */}
       <div className="flex items-center justify-between px-5 py-3 border-b border-dark-border/30">
         <button onClick={() => navigate(-1)} className="text-text-secondary text-lg">
@@ -162,7 +162,7 @@ export default function DiaryEdit() {
 
       {/* 日期选择器 */}
       {showDatePicker && (
-        <div className="bg-[#141414] px-5 py-3 border-b border-dark-border/30 animate-fade-in">
+        <div className="bg-dark-card px-5 py-3 border-b border-dark-border/30 animate-fade-in">
           <div className="flex items-center justify-between mb-2">
             <button onClick={() => changeMonth(-1)} className="text-text-secondary px-3">◀</button>
             <span className="text-sm text-text-primary font-medium">
@@ -190,7 +190,7 @@ export default function DiaryEdit() {
                   className={`py-1 rounded-full transition-all ${
                     isSelected
                       ? 'bg-coral-gradient text-white'
-                      : 'text-text-secondary hover:bg-[#252525]'
+                      : 'text-text-secondary hover:bg-dark-card'
                   }`}
                 >
                   {day}
@@ -244,9 +244,9 @@ export default function DiaryEdit() {
               onClick={handleCamera}
               className="flex flex-col items-center gap-1 group"
             >
-              <span className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl transition-all ${
-                false ? 'bg-coral-light/20' : 'bg-[#1A1A1A] group-hover:bg-[#252525]'
-              }`}>
+              <span                 className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl transition-all ${
+                  false ? 'bg-coral-light/20' : 'bg-dark-card hover:bg-dark-card/80'
+                }`}>
                 📷
               </span>
               <span className="text-[10px] text-text-secondary/50">相机</span>
@@ -263,7 +263,7 @@ export default function DiaryEdit() {
               }}
               className="flex flex-col items-center gap-1 group"
             >
-              <span className="w-10 h-10 rounded-xl flex items-center justify-center text-xl bg-[#1A1A1A] group-hover:bg-[#252525] transition-all">
+                <span className="w-10 h-10 rounded-xl flex items-center justify-center text-xl bg-dark-card hover:bg-dark-card/80 transition-all">
                 🖼️
               </span>
               <span className="text-[10px] text-text-secondary/50">相册</span>
@@ -275,8 +275,8 @@ export default function DiaryEdit() {
                 onClick={() => { setShowWeatherPicker(!showWeatherPicker); setShowMoodPicker(false) }}
                 className={`flex flex-col items-center gap-1 ${weather ? '' : ''}`}
               >
-                <span className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl transition-all ${
-                  weather ? 'bg-blue-500/20' : 'bg-[#1A1A1A] hover:bg-[#252525]'
+                <span                 className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl transition-all ${
+                  weather ? 'bg-blue-500/20' : 'bg-dark-card hover:bg-dark-card/80'
                 }`}>
                   {weather ? WEATHER_OPTIONS.find(w => w.id === weather)?.icon : '☁️'}
                 </span>
@@ -286,7 +286,7 @@ export default function DiaryEdit() {
               </button>
 
               {showWeatherPicker && (
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-[#1E1E1E] rounded-2xl p-3 border border-dark-border/50 shadow-xl z-50 animate-fade-in">
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-dark-card rounded-2xl p-3 border border-dark-border/50 shadow-xl z-50 animate-fade-in">
                   <div className="grid grid-cols-4 gap-2">
                     {WEATHER_OPTIONS.map((w) => (
                       <button
@@ -319,8 +319,8 @@ export default function DiaryEdit() {
                 onClick={() => { setShowMoodPicker(!showMoodPicker); setShowWeatherPicker(false) }}
                 className="flex flex-col items-center gap-1"
               >
-                <span className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl transition-all ${
-                  mood ? '' : 'bg-[#1A1A1A] hover:bg-[#252525]'
+                <span                 className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl transition-all ${
+                  mood ? '' : 'bg-dark-card hover:bg-dark-card/80'
                 }`}
                 style={mood ? { backgroundColor: MOOD_OPTIONS.find(m => m.id === mood)?.color + '20' } : {}}
                 >
@@ -334,14 +334,14 @@ export default function DiaryEdit() {
               </button>
 
               {showMoodPicker && (
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-[#1E1E1E] rounded-2xl p-3 border border-dark-border/50 shadow-xl z-50 animate-fade-in">
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-dark-card rounded-2xl p-3 border border-dark-border/50 shadow-xl z-50 animate-fade-in">
                   <div className="grid grid-cols-4 gap-2">
                     {MOOD_OPTIONS.map((m) => (
                       <button
                         key={m.id}
                         onClick={() => { setMood(m.id); setShowMoodPicker(false) }}
                         className={`flex flex-col items-center p-2 rounded-xl transition-all ${
-                          mood === m.id ? 'ring-1' : 'hover:bg-[#2A2A2A]'
+                          mood === m.id ? 'ring-1' : 'hover:bg-dark-card/80'
                         }`}
                         style={mood === m.id ? { backgroundColor: m.color + '20', borderColor: m.color + '60' } : {}}
                       >

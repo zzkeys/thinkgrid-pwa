@@ -32,7 +32,7 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A]">
+    <div className="min-h-screen bg-dark-bg">
       {/* 头部区域 */}
       <div className="px-5 pt-5 pb-3">
         {/* 标题行 */}

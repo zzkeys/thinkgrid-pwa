@@ -316,20 +316,40 @@ export function getContentPreview(content, maxLength = 100) {
 
 // ==================== 导入导出 ====================
 
-// 导出为 JSON 备份
-export function exportToJSON() {
+// 根据类型筛选数据
+function filterByType(data, type) {
+  if (type === 'all') return data
+  if (type === 'notes') return data.filter((n) => n.type !== 'diary')
+  if (type === 'diaries') return data.filter((n) => n.type === 'diary')
+  return data
+}
+
+// 导出为 JSON 备份（支持选择类型）
+export function exportToJSON(type = 'all') {
   try {
+    const allNotes = getNotes()
+    const notes = filterByType(allNotes, type)
+    const tags = getTags()
+    // 如果导出的是筛选后的笔记，也只导出相关标签
+    const noteTagIds = new Set(notes.flatMap((n) => n.tags || []))
+    const filteredTags = tags.filter((t) => noteTagIds.has(t.id))
+
     const data = {
       version: '1.0',
       exportDate: new Date().toISOString(),
-      notes: getNotes(),
-      tags: getTags(),
-      settings: getSettings(),
-      stats: getStats(),
+      exportType: type,
+      notes: notes,
+      tags: type === 'todos' ? [] : filteredTags,
+      settings: type === 'todos' ? {} : getSettings(),
+      stats: type === 'todos' ? {} : getStats(),
+    }
+    if (type === 'todos' || type === 'all') {
+      data.todos = getTodos()
     }
     const jsonStr = JSON.stringify(data, null, 2)
-    downloadFile(jsonStr, `thinkgrid_backup_${new Date().toISOString().slice(0, 10)}.json`, 'application/json')
-    return { success: true }
+    const typeLabel = { all: '完整备份', notes: '笔记', diaries: '日记', todos: '待办' }[type] || '数据'
+    downloadFile(jsonStr, `thinkgrid_${type}_${new Date().toISOString().slice(0, 10)}.json`, 'application/json')
+    return { success: true, type, label: typeLabel }
   } catch (error) {
     return { success: false, error: error.message }
   }
@@ -408,18 +428,30 @@ function blobToBase64(blob) {
   })
 }
 
-// 导出为 Markdown
-export function exportToMarkdown() {
+// 导出为 Markdown（支持选择类型）
+export function exportToMarkdown(type = 'all') {
   try {
-    const notes = getNotes()
+    const allNotes = getNotes()
+    const notes = filterByType(allNotes, type)
     const tags = getTags()
 
-    let markdown = `# 思格笔记导出\n\n`
+    let markdown = `# 思格笔记导出${type !== 'all' ? '（' + { notes: '笔记', diaries: '日记', todos: '待办' }[type] + '）' : ''}\n\n`
     markdown += `> 导出时间：${new Date().toLocaleString('zh-CN')}\n\n`
     markdown += `---\n\n`
 
     notes.forEach((note, index) => {
       markdown += `## ${index + 1}. ${note.title || '无标题'}\n\n`
+
+      if (note.type === 'diary') {
+        if (note.weather) {
+          const w = WEATHER_OPTIONS.find(w => w.id === note.weather)
+          if (w) markdown += `**天气**：${w.icon} ${w.label}\n\n`
+        }
+        if (note.mood) {
+          const m = MOOD_OPTIONS.find(m => m.id === note.mood)
+          if (m) markdown += `**心情**：${m.emoji} ${m.label}\n\n`
+        }
+      }
 
       if (note.tags && note.tags.length > 0) {
         const tagNames = note.tags.map((tid) => {
@@ -436,25 +468,50 @@ export function exportToMarkdown() {
       markdown += `---\n\n`
     })
 
-    downloadFile(markdown, `thinkgrid_notes_${new Date().toISOString().slice(0, 10)}.md`, 'text/markdown')
-    return { success: true }
+    // 导出待办
+    if (type === 'todos' || type === 'all') {
+      const todos = getTodos()
+      if (todos.length > 0) {
+        markdown += `## 待办清单\n\n`
+        todos.forEach((t, i) => {
+          markdown += `- [${t.completed ? 'x' : ' '}] ${t.text}${t.reminderAt ? ' 🔔' + new Date(t.reminderAt).toLocaleString('zh-CN') : ''}\n`
+        })
+        markdown += `\n---\n\n`
+      }
+    }
+
+    const typeLabel = { all: '完整', notes: '笔记', diaries: '日记', todos: '待办' }[type] || ''
+    downloadFile(markdown, `thinkgrid_${type}_${new Date().toISOString().slice(0, 10)}.md`, 'text/markdown')
+    return { success: true, type, label: typeLabel }
   } catch (error) {
     return { success: false, error: error.message }
   }
 }
 
-// 导出为纯文本
-export function exportToText() {
+// 导出为纯文本（支持选择类型）
+export function exportToText(type = 'all') {
   try {
-    const notes = getNotes()
+    const allNotes = getNotes()
+    const notes = filterByType(allNotes, type)
     const tags = getTags()
 
-    let text = `思格笔记导出\n`
+    let text = `思格笔记导出${type !== 'all' ? '（' + { notes: '笔记', diaries: '日记', todos: '待办' }[type] + '）' : ''}\n`
     text += `导出时间：${new Date().toLocaleString('zh-CN')}\n`
     text += `================================\n\n`
 
     notes.forEach((note, index) => {
       text += `[${index + 1}] ${note.title || '无标题'}\n`
+
+      if (note.type === 'diary') {
+        if (note.weather) {
+          const w = WEATHER_OPTIONS.find(w => w.id === note.weather)
+          if (w) text += `天气：${w.icon} ${w.label}\n`
+        }
+        if (note.mood) {
+          const m = MOOD_OPTIONS.find(m => m.id === note.mood)
+          if (m) text += `心情：${m.emoji} ${m.label}\n`
+        }
+      }
 
       if (note.tags && note.tags.length > 0) {
         const tagNames = note.tags.map((tid) => {
@@ -471,8 +528,21 @@ export function exportToText() {
       text += `${note.content || '暂无内容'}\n\n`
     })
 
-    downloadFile(text, `thinkgrid_notes_${new Date().toISOString().slice(0, 10)}.txt`, 'text/plain')
-    return { success: true }
+    // 导出待办
+    if (type === 'todos' || type === 'all') {
+      const todos = getTodos()
+      if (todos.length > 0) {
+        text += `\n待办清单\n`
+        text += `================================\n`
+        todos.forEach((t, i) => {
+          text += `[${t.completed ? 'x' : ' '}] ${t.text}${t.reminderAt ? ' 🔔' + new Date(t.reminderAt).toLocaleString('zh-CN') : ''}\n`
+        })
+      }
+    }
+
+    const typeLabel = { all: '完整', notes: '笔记', diaries: '日记', todos: '待办' }[type] || ''
+    downloadFile(text, `thinkgrid_${type}_${new Date().toISOString().slice(0, 10)}.txt`, 'text/plain')
+    return { success: true, type, label: typeLabel }
   } catch (error) {
     return { success: false, error: error.message }
   }

@@ -271,7 +271,7 @@ export default function Tags() {
                 <div
                   key={note.id}
                   onClick={() => navigate(`/note/${note.id}`)}
-                  className="bg-dark-card rounded-xl p-3 cursor-pointer hover:bg-[#222] transition-colors border border-dark-border/50"
+                  className="bg-dark-card rounded-xl p-3 cursor-pointer hover:bg-dark-card/80 transition-colors border border-dark-border/50"
                 >
                   <h4 className="text-text-primary text-sm font-medium mb-1 line-clamp-1">
                     {note.title || '无标题'}
@@ -323,7 +323,7 @@ export default function Tags() {
 
           {/* 新建标签表单 */}
           {showAddForm && (
-            <div className="bg-[#141414] rounded-xl p-3 mb-3 border border-dark-border/50 animate-fade-in">
+            <div className="bg-dark-card rounded-xl p-3 mb-3 border border-dark-border/50 animate-fade-in">
               <input
                 type="text"
                 value={newTagName}
@@ -331,7 +331,7 @@ export default function Tags() {
                 onKeyDown={(e) => e.key === 'Enter' && handleAddTag()}
                 placeholder="标签名称"
                 autoFocus
-                className="w-full bg-[#0F0F0F] rounded-xl px-4 py-2.5 text-sm text-text-primary outline-none border border-dark-border/50 focus:border-coral-light/50 mb-3"
+                className="w-full bg-dark-bg/50 rounded-xl px-4 py-2.5 text-sm text-text-primary outline-none border border-dark-border/50 focus:border-coral-light/50 mb-3"
               />
               {/* 颜色选择 */}
               <div className="flex gap-2 mb-3">

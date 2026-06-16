@@ -28,6 +28,7 @@ export default function Profile() {
   const [tempCustomPrompt, setTempCustomPrompt] = useState('')
   const [showModelSelect, setShowModelSelect] = useState(false)
   const [exportStatus, setExportStatus] = useState(null)
+  const [pendingExport, setPendingExport] = useState(null) // { format: 'json'|'md'|'txt', type: 'all'|'notes'|'diaries'|'todos' }
 
   useEffect(() => {
     loadData()
@@ -108,21 +109,34 @@ export default function Profile() {
     }
   }
 
-  const handleExport = async (format) => {
+  // 点击导出按钮，先显示类型选择
+  const handleExportClick = (format) => {
+    setPendingExport({ format, type: null })
+  }
+
+  // 选择类型后执行导出
+  const doExport = (format, type) => {
+    setPendingExport(null)
     setExportStatus(null)
     let result
-    if (format === 'json') result = exportToJSON()
-    else if (format === 'md') result = exportToMarkdown()
-    else if (format === 'txt') result = exportToText()
+    if (format === 'json') result = exportToJSON(type)
+    else if (format === 'md') result = exportToMarkdown(type)
+    else if (format === 'txt') result = exportToText(type)
 
     if (result && result.success) {
-      const formatName = format === 'json' ? 'JSON 备份' : format === 'md' ? 'Markdown' : '纯文本'
-      setExportStatus({ type: 'success', message: `${formatName} 导出成功！文件已开始下载` })
-      // 3秒后自动消失
+      const typeLabel = { all: '完整备份', notes: '笔记', diaries: '日记', todos: '待办' }[type] || ''
+      const formatName = format === 'json' ? 'JSON' : format === 'md' ? 'Markdown' : '纯文本'
+      setExportStatus({ type: 'success', message: `${formatName} · ${typeLabel} 导出成功！` })
       setTimeout(() => setExportStatus(null), 3000)
     } else {
       setExportStatus({ type: 'error', message: `导出失败：${result?.error || '未知错误'}` })
       setTimeout(() => setExportStatus(null), 4000)
+    }
+  }
+
+  const handleTypeSelect = (type) => {
+    if (pendingExport) {
+      doExport(pendingExport.format, type)
     }
   }
 
@@ -206,7 +220,7 @@ export default function Profile() {
         <div className="bg-dark-card rounded-2xl mb-4 border border-dark-border/50 overflow-hidden">
           <button
             onClick={() => setShowDataManage(true)}
-            className="w-full px-5 py-4 flex items-center justify-between hover:bg-[#222222] transition-colors"
+            className="w-full px-5 py-4 flex items-center justify-between hover:bg-dark-card/80 transition-colors"
           >
             <div className="flex items-center gap-3">
               <span>💾</span>
@@ -220,7 +234,7 @@ export default function Profile() {
         <div className="bg-dark-card rounded-2xl border border-dark-border/50 overflow-hidden">
           <button
             onClick={() => navigate('/tags')}
-            className="w-full px-5 py-4 flex items-center justify-between hover:bg-[#222222] transition-colors"
+            className="w-full px-5 py-4 flex items-center justify-between hover:bg-dark-card/80 transition-colors"
           >
             <div className="flex items-center gap-3">
               <span>🏷️</span>
@@ -251,7 +265,7 @@ export default function Profile() {
               <h3 className="text-text-primary font-semibold text-lg">AI 设置</h3>
               <button
                 onClick={() => setShowSettings(false)}
-                className="w-8 h-8 rounded-full bg-[#0F0F0F] flex items-center justify-center text-text-secondary hover:text-text-primary transition-colors"
+                className="w-8 h-8 rounded-full bg-dark-card flex items-center justify-center text-text-secondary hover:text-text-primary transition-colors"
               >
                 ✕
               </button>
@@ -260,7 +274,7 @@ export default function Profile() {
             {/* AI 功能开关 */}
             <div className="mb-6">
               <label className="text-text-secondary text-xs mb-3 block font-medium">AI 功能</label>
-              <div className="bg-[#0F0F0F] rounded-2xl p-4 border border-dark-border/30">
+              <div className="bg-dark-bg rounded-2xl p-4 border border-dark-border/30">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <span className="text-xl">🤖</span>
@@ -298,7 +312,7 @@ export default function Profile() {
                     className={`py-3 rounded-xl text-sm font-medium transition-all ${
                       settings.aiProvider === key
                         ? 'bg-coral-gradient text-white shadow-lg shadow-coral-light/20'
-                        : 'bg-[#0F0F0F] text-text-secondary border border-dark-border/50 hover:border-dark-border'
+                        : 'bg-dark-bg text-text-secondary border border-dark-border/50 hover:border-dark-border'
                     }`}
                   >
                     {info.name}
@@ -312,7 +326,7 @@ export default function Profile() {
               <label className="text-text-secondary text-xs mb-3 block font-medium">API 配置</label>
 
               {/* API 地址 */}
-              <div className="bg-[#0F0F0F] rounded-2xl p-4 border border-dark-border/30 mb-3">
+              <div className="bg-dark-bg rounded-2xl p-4 border border-dark-border/30 mb-3">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-sm">☁️</span>
                   <span className="text-text-primary text-sm">API 地址</span>
@@ -322,12 +336,12 @@ export default function Profile() {
                   value={tempApiUrl}
                   onChange={(e) => { setTempApiUrl(e.target.value); setTestStatus(null) }}
                   placeholder={AI_MODELS[settings.aiProvider]?.defaultUrl || 'https://...'}
-                  className="w-full bg-[#1A1A1A] rounded-xl px-4 py-2.5 text-sm text-text-primary outline-none border border-dark-border/50 focus:border-coral-light/50 transition-colors"
+                  className="w-full bg-dark-card/80 rounded-xl px-4 py-2.5 text-sm text-text-primary outline-none border border-dark-border/50 focus:border-coral-light/50 transition-colors"
                 />
               </div>
 
               {/* API 密钥 */}
-              <div className="bg-[#0F0F0F] rounded-2xl p-4 border border-dark-border/30">
+              <div className="bg-dark-bg rounded-2xl p-4 border border-dark-border/30">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-sm">🔑</span>
                   <span className="text-text-primary text-sm">API 密钥</span>
@@ -468,7 +482,7 @@ export default function Profile() {
               <h3 className="text-text-primary font-semibold text-lg">选择模型</h3>
               <button
                 onClick={() => setShowModelSelect(false)}
-                className="w-8 h-8 rounded-full bg-[#0F0F0F] flex items-center justify-center text-text-secondary hover:text-text-primary transition-colors"
+                className="w-8 h-8 rounded-full bg-dark-card flex items-center justify-center text-text-secondary hover:text-text-primary transition-colors"
               >
                 ✕
               </button>
@@ -519,20 +533,20 @@ export default function Profile() {
 
               <div className="space-y-2">
                 <button
-                  onClick={() => handleExport('json')}
-                  className="w-full py-3 rounded-xl bg-[#0F0F0F] text-text-primary text-sm font-medium border border-dark-border/50 hover:border-coral-light/30 transition-all flex items-center justify-center gap-2"
+                  onClick={() => handleExportClick('json')}
+                  className="w-full py-3 rounded-xl bg-dark-bg text-text-primary text-sm font-medium border border-dark-border/50 hover:border-coral-light/30 transition-all flex items-center justify-center gap-2"
                 >
-                  <span>📦</span> 导出完整备份 (JSON)
+                  <span>📦</span> 导出为 JSON
                 </button>
                 <button
-                  onClick={() => handleExport('md')}
-                  className="w-full py-3 rounded-xl bg-[#0F0F0F] text-text-primary text-sm font-medium border border-dark-border/50 hover:border-coral-light/30 transition-all flex items-center justify-center gap-2"
+                  onClick={() => handleExportClick('md')}
+                  className="w-full py-3 rounded-xl bg-dark-bg text-text-primary text-sm font-medium border border-dark-border/50 hover:border-coral-light/30 transition-all flex items-center justify-center gap-2"
                 >
                   <span>📝</span> 导出为 Markdown
                 </button>
                 <button
-                  onClick={() => handleExport('txt')}
-                  className="w-full py-3 rounded-xl bg-[#0F0F0F] text-text-primary text-sm font-medium border border-dark-border/50 hover:border-coral-light/30 transition-all flex items-center justify-center gap-2"
+                  onClick={() => handleExportClick('txt')}
+                  className="w-full py-3 rounded-xl bg-dark-bg text-text-primary text-sm font-medium border border-dark-border/50 hover:border-coral-light/30 transition-all flex items-center justify-center gap-2"
                 >
                   <span>📄</span> 导出为纯文本
                 </button>
@@ -576,6 +590,44 @@ export default function Profile() {
             >
               关闭
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* 导出类型选择弹窗 */}
+      {showExportType && (
+        <div className="fixed inset-0 bg-black/60 flex items-end justify-center z-[60]" onClick={() => setShowExportType(null)}>
+          <div className="bg-dark-card rounded-t-3xl w-full max-w-md p-6 animate-fade-in" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-text-primary font-semibold text-lg">选择导出范围</h3>
+              <button
+                onClick={() => setShowExportType(null)}
+                className="w-8 h-8 rounded-full bg-dark-card flex items-center justify-center text-text-secondary hover:text-text-primary transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-text-secondary/60 text-xs mb-4">选择要导出的数据类型</p>
+            <div className="space-y-2.5">
+              {[
+                { id: 'all', label: '全部', icon: '📦', desc: '笔记 + 日记 + 待办' },
+                { id: 'notes', label: '笔记', icon: '📝', desc: '仅普通笔记' },
+                { id: 'diaries', label: '日记', icon: '📔', desc: '仅日记记录' },
+                { id: 'todos', label: '待办清单', icon: '⏳', desc: '仅待办事项' },
+              ].map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => handleTypeSelect(item.id)}
+                  className="w-full py-3.5 px-4 rounded-2xl bg-dark-bg hover:bg-dark-card/80 transition-all text-left flex items-center gap-3 border border-dark-border/30 hover:border-coral-light/20"
+                >
+                  <span className="text-xl">{item.icon}</span>
+                  <div>
+                    <p className="text-text-primary text-sm font-medium">{item.label}</p>
+                    <p className="text-text-secondary/40 text-[11px]">{item.desc}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}

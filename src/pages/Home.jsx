@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import NoteCard from '../components/NoteCard.jsx'
 import AICard from '../components/AICard.jsx'
+import TodoList from '../components/TodoList.jsx'
 import { getNotes, initStats } from '../services/storage.js'
 
 export default function Home() {
@@ -43,6 +44,11 @@ export default function Home() {
       {/* AI 洞察入口 */}
       <div className="px-5">
         <AICard onGenerate={handleGenerate} />
+      </div>
+
+      {/* 待办清单 */}
+      <div className="px-5">
+        <TodoList />
       </div>
 
       {/* 笔记列表头部 */}

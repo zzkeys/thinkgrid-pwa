@@ -27,6 +27,7 @@ export default function Profile() {
   const [tempCustomPromptEnabled, setTempCustomPromptEnabled] = useState(false)
   const [tempCustomPrompt, setTempCustomPrompt] = useState('')
   const [showModelSelect, setShowModelSelect] = useState(false)
+  const [exportStatus, setExportStatus] = useState(null)
 
   useEffect(() => {
     loadData()
@@ -107,10 +108,22 @@ export default function Profile() {
     }
   }
 
-  const handleExport = (format) => {
-    if (format === 'json') exportToJSON()
-    else if (format === 'md') exportToMarkdown()
-    else if (format === 'txt') exportToText()
+  const handleExport = async (format) => {
+    setExportStatus(null)
+    let result
+    if (format === 'json') result = exportToJSON()
+    else if (format === 'md') result = exportToMarkdown()
+    else if (format === 'txt') result = exportToText()
+
+    if (result && result.success) {
+      const formatName = format === 'json' ? 'JSON 备份' : format === 'md' ? 'Markdown' : '纯文本'
+      setExportStatus({ type: 'success', message: `${formatName} 导出成功！文件已开始下载` })
+      // 3秒后自动消失
+      setTimeout(() => setExportStatus(null), 3000)
+    } else {
+      setExportStatus({ type: 'error', message: `导出失败：${result?.error || '未知错误'}` })
+      setTimeout(() => setExportStatus(null), 4000)
+    }
   }
 
   const handleFileSelect = (e) => {
@@ -491,6 +504,19 @@ export default function Profile() {
             {/* 导出数据 */}
             <div className="mb-6">
               <label className="text-text-secondary text-xs mb-2 block">导出数据</label>
+
+              {/* 导出状态提示 */}
+              {exportStatus && (
+                <div className={`rounded-xl p-3 mb-3 text-sm flex items-center gap-2 animate-fade-in ${
+                  exportStatus.type === 'success'
+                    ? 'bg-[#1A3A2F]/80 text-[#4ADE80] border border-[#4ADE80]/30'
+                    : 'bg-[#3A1A1A]/80 text-red-400 border border-red-400/30'
+                }`}>
+                  <span>{exportStatus.type === 'success' ? '✅' : '❌'}</span>
+                  <span>{exportStatus.message}</span>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <button
                   onClick={() => handleExport('json')}

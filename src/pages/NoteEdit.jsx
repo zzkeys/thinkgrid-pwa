@@ -37,6 +37,30 @@ export default function NoteEdit() {
   const [generatingTitle, setGeneratingTitle] = useState(false)
   const [showToolbar, setShowToolbar] = useState(false)
 
+  // 排版格式化：在光标位置插入 Markdown 语法
+  const insertFormat = (prefix, suffix, placeholder) => {
+    if (textareaRef.current) {
+      const start = textareaRef.current.selectionStart
+      const end = textareaRef.current.selectionEnd
+      const selectedText = displayContent.substring(start, end)
+      const insertText = selectedText || placeholder
+      const newText = displayContent.substring(0, start) + prefix + insertText + (suffix || prefix) + displayContent.substring(end)
+
+      setDisplayContent(newText)
+      setContent(toRawContent(newText, images))
+
+      // 设置光标位置到插入文本之后
+      setTimeout(() => {
+        if (textareaRef.current) {
+          const cursorPos = start + prefix.length + insertText.length + (suffix || prefix).length
+          textareaRef.current.selectionStart = cursorPos
+          textareaRef.current.selectionEnd = cursorPos
+          textareaRef.current.focus()
+        }
+      }, 0)
+    }
+  }
+
   // 提取内容中的图片
   const images = useMemo(() => {
     const imgRegex = /!\[([^\]]*)\]\((data:image\/[^)]+)\)/g
@@ -236,42 +260,115 @@ export default function NoteEdit() {
         />
 
         {/* 工具栏 */}
-        <div className="flex items-center gap-2 mb-4">
-          <button
-            onClick={() => setShowToolbar(!showToolbar)}
-            className="p-2 rounded-lgl bg-[#1A1A1A] text-text-secondary hover:text-text-primary transition-colors border border-dark-border/50"
-            title="工具栏"
-          >
-            ⋯
-          </button>
-          <button
-            onClick={handleImageUpload}
-            className="p-2 rounded-lgl bg-[#1A1A1A] text-text-secondary hover:text-text-primary transition-colors border border-dark-border/50"
-            title="上传图片"
-          >
-            📷
-          </button>
-          <button
-            onClick={handleGenerateTitle}
-            disabled={generatingTitle}
-            className="p-2 rounded-lgl bg-[#1A1A1A] text-coral-light hover:text-coral-light/80 transition-colors border border-dark-border/50 disabled:opacity-50 flex items-center gap-1"
-            title="AI 生成标题"
-          >
-            {generatingTitle ? (
-              <span className="w-3 h-3 border-2 border-coral-light/30 border-t-coral-light rounded-full animate-spin" />
-            ) : (
-              <span>✨</span>
-            )}
-          </button>
+        <div className="mb-4">
+          {/* 主工具栏 */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowToolbar(!showToolbar)}
+              className={`p-2 rounded-xl text-sm transition-colors border ${showToolbar ? 'bg-coral-light/20 border-coral-light/30 text-coral-light' : 'bg-[#1A1A1A] text-text-secondary hover:text-text-primary border-dark-border/50'}`}
+              title="排版工具"
+            >
+              ⋯
+            </button>
+            <button
+              onClick={handleImageUpload}
+              className="p-2 rounded-xl bg-[#1A1A1A] text-text-secondary hover:text-text-primary transition-colors border border-dark-border/50"
+              title="上传图片"
+            >
+              📷
+            </button>
+            <button
+              onClick={handleGenerateTitle}
+              disabled={generatingTitle}
+              className="p-2 rounded-xl bg-[#1A1A1A] text-coral-light hover:text-coral-light/80 transition-colors border border-dark-border/50 disabled:opacity-50 flex items-center gap-1"
+              title="AI 生成标题"
+            >
+              {generatingTitle ? (
+                <span className="w-3 h-3 border-2 border-coral-light/30 border-t-coral-light rounded-full animate-spin" />
+              ) : (
+                <span>✨</span>
+              )}
+            </button>
 
-          {/* 隐藏的文件输入 */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleFileChange}
-            className="hidden"
-          />
+            {/* 隐藏的文件输入 */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              className="hidden"
+            />
+          </div>
+
+          {/* 排版工具栏（展开） */}
+          {showToolbar && (
+            <div className="mt-2 flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-hide animate-fade-in">
+              <button
+                onClick={() => insertFormat('**', '**', '粗体文字')}
+                className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-[#1A1A1A] text-text-secondary text-xs font-bold hover:text-text-primary hover:bg-[#252525] border border-dark-border/30 transition-all"
+                title="粗体"
+              >
+                B
+              </button>
+              <button
+                onClick={() => insertFormat('*', '*', '斜体文字')}
+                className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-[#1A1A1A] text-text-secondary text-xs italic hover:text-text-primary hover:bg-[#252525] border border-dark-border/30 transition-all"
+                title="斜体"
+              >
+                I
+              </button>
+              <button
+                onClick={() => insertFormat('### ', '', '标题文字')}
+                className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-[#1A1A1A] text-text-secondary text-sm font-semibold hover:text-text-primary hover:bg-[#252525] border border-dark-border/30 transition-all"
+                title="标题"
+              >
+                H
+              </button>
+              <button
+                onClick={() => insertFormat('- ', '', '列表项')}
+                className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-[#1A1A1A] text-text-secondary text-xs hover:text-text-primary hover:bg-[#252525] border border-dark-border/30 transition-all"
+                title="无序列表"
+              >
+                ≡
+              </button>
+              <button
+                onClick={() => insertFormat('1. ', '', '有序列表')}
+                className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-[#1A1A1A] text-text-secondary text-xs hover:text-text-primary hover:bg-[#252525] border border-dark-border/30 transition-all"
+                title="有序列表"
+              >
+                1.
+              </button>
+              <button
+                onClick={() => insertFormat('> ', '', '引用内容')}
+                className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-[#1A1A1A] text-text-secondary text-xs hover:text-text-primary hover:bg-[#252525] border border-dark-border/30 transition-all"
+                title="引用"
+              >
+                "
+              </button>
+              <button
+                onClick={() => insertFormat('~~', '~~', '删除线')}
+                className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-[#1A1A1A] text-text-secondary text-xs line-through hover:text-text-primary hover:bg-[#252525] border border-dark-border/30 transition-all"
+                title="删除线"
+              >
+                S
+              </button>
+              <div className="flex-shrink-0 w-px h-6 bg-dark-border/50 mx-0.5" />
+              <button
+                onClick={() => insertFormat('---\n', '', '')}
+                className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-[#1A1A1A] text-text-secondary text-xs hover:text-text-primary hover:bg-[#252525] border border-dark-border/30 transition-all"
+                title="分割线"
+              >
+                ――
+              </button>
+              <button
+                onClick={() => insertFormat('`', '`', '代码')}
+                className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-[#1A1A1A] text-text-secondary text-xs font-mono hover:text-text-primary hover:bg-[#252525] border border-dark-border/30 transition-all"
+                title="行内代码"
+              >
+                &lt;/&gt;
+              </button>
+            </div>
+          )}
         </div>
 
         {/* 图片预览 */}

@@ -4,6 +4,7 @@ const STORAGE_KEYS = {
   TAGS: 'thinkgrid_tags',
   SETTINGS: 'thinkgrid_settings',
   STATS: 'thinkgrid_stats',
+  TODOS: 'thinkgrid_todos',
 }
 
 // ==================== 笔记 CRUD ====================
@@ -313,99 +314,116 @@ export function getContentPreview(content, maxLength = 100) {
 
 // 导出为 JSON 备份
 export function exportToJSON() {
-  const data = {
-    version: '1.0',
-    exportDate: new Date().toISOString(),
-    notes: getNotes(),
-    tags: getTags(),
-    settings: getSettings(),
-    stats: getStats(),
+  try {
+    const data = {
+      version: '1.0',
+      exportDate: new Date().toISOString(),
+      notes: getNotes(),
+      tags: getTags(),
+      settings: getSettings(),
+      stats: getStats(),
+    }
+    const jsonStr = JSON.stringify(data, null, 2)
+    downloadFile(jsonStr, `thinkgrid_backup_${new Date().toISOString().slice(0, 10)}.json`, 'application/json')
+    return { success: true }
+  } catch (error) {
+    return { success: false, error: error.message }
   }
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+}
+
+// 通用下载函数
+function downloadFile(content, filename, mimeType) {
+  // 处理 UTF-8 BOM（确保中文不乱码）
+  const charset = mimeType.includes('text') || mimeType.includes('markdown') ? ';charset=utf-8' : ''
+  
+  // 创建 Blob
+  const blob = new Blob([content], { type: mimeType + charset })
   const url = URL.createObjectURL(blob)
+
+  // 使用临时 <a> 元素触发下载
   const a = document.createElement('a')
   a.href = url
-  a.download = `thinkgrid_backup_${new Date().toISOString().slice(0, 10)}.json`
+  a.download = filename
+  a.style.display = 'none'
+  a.setAttribute('target', '_blank')
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)
-  URL.revokeObjectURL(url)
+
+  // 延迟释放 URL 对象，确保下载完成
+  setTimeout(() => {
+    URL.revokeObjectURL(url)
+  }, 1000)
 }
 
 // 导出为 Markdown
 export function exportToMarkdown() {
-  const notes = getNotes()
-  const tags = getTags()
+  try {
+    const notes = getNotes()
+    const tags = getTags()
 
-  let markdown = `# 思格笔记导出\n\n`
-  markdown += `> 导出时间：${new Date().toLocaleString('zh-CN')}\n\n`
-  markdown += `---\n\n`
-
-  notes.forEach((note, index) => {
-    markdown += `## ${index + 1}. ${note.title || '无标题'}\n\n`
-
-    if (note.tags && note.tags.length > 0) {
-      const tagNames = note.tags.map((tid) => {
-        const tag = tags.find((t) => t.id === tid)
-        return tag ? tag.name : ''
-      }).filter(Boolean)
-      if (tagNames.length > 0) {
-        markdown += `**标签**：${tagNames.join('、')}\n\n`
-      }
-    }
-
-    markdown += `**时间**：${new Date(note.createdAt).toLocaleString('zh-CN')}\n\n`
-    markdown += `${note.content || '暂无内容'}\n\n`
+    let markdown = `# 思格笔记导出\n\n`
+    markdown += `> 导出时间：${new Date().toLocaleString('zh-CN')}\n\n`
     markdown += `---\n\n`
-  })
 
-  const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `thinkgrid_notes_${new Date().toISOString().slice(0, 10)}.md`
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
+    notes.forEach((note, index) => {
+      markdown += `## ${index + 1}. ${note.title || '无标题'}\n\n`
+
+      if (note.tags && note.tags.length > 0) {
+        const tagNames = note.tags.map((tid) => {
+          const tag = tags.find((t) => t.id === tid)
+          return tag ? tag.name : ''
+        }).filter(Boolean)
+        if (tagNames.length > 0) {
+          markdown += `**标签**：${tagNames.join('、')}\n\n`
+        }
+      }
+
+      markdown += `**时间**：${new Date(note.createdAt).toLocaleString('zh-CN')}\n\n`
+      markdown += `${note.content || '暂无内容'}\n\n`
+      markdown += `---\n\n`
+    })
+
+    downloadFile(markdown, `thinkgrid_notes_${new Date().toISOString().slice(0, 10)}.md`, 'text/markdown')
+    return { success: true }
+  } catch (error) {
+    return { success: false, error: error.message }
+  }
 }
 
 // 导出为纯文本
 export function exportToText() {
-  const notes = getNotes()
-  const tags = getTags()
+  try {
+    const notes = getNotes()
+    const tags = getTags()
 
-  let text = `思格笔记导出\n`
-  text += `导出时间：${new Date().toLocaleString('zh-CN')}\n`
-  text += `================================\n\n`
+    let text = `思格笔记导出\n`
+    text += `导出时间：${new Date().toLocaleString('zh-CN')}\n`
+    text += `================================\n\n`
 
-  notes.forEach((note, index) => {
-    text += `[${index + 1}] ${note.title || '无标题'}\n`
+    notes.forEach((note, index) => {
+      text += `[${index + 1}] ${note.title || '无标题'}\n`
 
-    if (note.tags && note.tags.length > 0) {
-      const tagNames = note.tags.map((tid) => {
-        const tag = tags.find((t) => t.id === tid)
-        return tag ? tag.name : ''
-      }).filter(Boolean)
-      if (tagNames.length > 0) {
-        text += `标签：${tagNames.join('、')}\n`
+      if (note.tags && note.tags.length > 0) {
+        const tagNames = note.tags.map((tid) => {
+          const tag = tags.find((t) => t.id === tid)
+          return tag ? tag.name : ''
+        }).filter(Boolean)
+        if (tagNames.length > 0) {
+          text += `标签：${tagNames.join('、')}\n`
+        }
       }
-    }
 
-    text += `时间：${new Date(note.createdAt).toLocaleString('zh-CN')}\n`
-    text += `--------------------------------\n`
-    text += `${note.content || '暂无内容'}\n\n`
-  })
+      text += `时间：${new Date(note.createdAt).toLocaleString('zh-CN')}\n`
+      text += `--------------------------------\n`
+      text += `${note.content || '暂无内容'}\n\n`
+    })
 
-  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `thinkgrid_notes_${new Date().toISOString().slice(0, 10)}.txt`
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
+    downloadFile(text, `thinkgrid_notes_${new Date().toISOString().slice(0, 10)}.txt`, 'text/plain')
+    return { success: true }
+  } catch (error) {
+    return { success: false, error: error.message }
+  }
 }
 
 // 从 JSON 导入
@@ -445,4 +463,71 @@ export function importFromJSON(fileContent) {
   } catch (error) {
     return { success: false, error: error.message }
   }
+}
+
+// ==================== 待办事项 CRUD ====================
+
+const TODO_STORAGE_KEY = 'thinkgrid_todos'
+
+// 获取所有待办事项（按创建时间倒序，未完成的在前）
+export function getTodos() {
+  try {
+    const data = localStorage.getItem(TODO_STORAGE_KEY)
+    if (!data) return []
+    const todos = JSON.parse(data)
+    // 未完成在前，已完成在后；同状态按时间倒序
+    return todos.sort((a, b) => {
+      if (a.completed !== b.completed) return a.completed ? 1 : -1
+      return b.createdAt - a.createdAt
+    })
+  } catch {
+    return []
+  }
+}
+
+// 保存待办列表
+function saveTodos(todos) {
+  localStorage.setItem(TODO_STORAGE_KEY, JSON.stringify(todos))
+}
+
+// 添加待办事项
+export function addTodo(text) {
+  if (!text || !text.trim()) return null
+  const todos = getTodos()
+  const newTodo = {
+    id: Date.now().toString(36) + Math.random().toString(36).substring(2, 8),
+    text: text.trim(),
+    completed: false,
+    createdAt: Date.now(),
+    completedAt: null,
+  }
+  todos.unshift(newTodo)
+  saveTodos(todos)
+  return newTodo
+}
+
+// 切换待办完成状态
+export function toggleTodo(id) {
+  const todos = getTodos()
+  const todo = todos.find((t) => t.id === id)
+  if (!todo) return null
+  todo.completed = !todo.completed
+  todo.completedAt = todo.completed ? Date.now() : null
+  saveTodos(todos)
+  return todo
+}
+
+// 删除待办事项
+export function deleteTodo(id) {
+  let todos = getTodos()
+  todos = todos.filter((t) => t.id !== id)
+  saveTodos(todos)
+}
+
+// 清除已完成的待办
+export function clearCompletedTodos() {
+  const todos = getTodos()
+  const remaining = todos.filter((t) => !t.completed)
+  saveTodos(remaining)
+  return todos.length - remaining.length
 }

@@ -1,4 +1,7 @@
 // 本地存储服务
+import { Capacitor } from '@capacitor/core'
+import { Filesystem, Directory, Encoding } from '@capacitor/filesystem'
+
 const STORAGE_KEYS = {
   NOTES: 'thinkgrid_notes',
   TAGS: 'thinkgrid_tags',
@@ -331,16 +334,56 @@ export function exportToJSON() {
   }
 }
 
-// 通用下载函数
-function downloadFile(content, filename, mimeType) {
-  // 处理 UTF-8 BOM（确保中文不乱码）
+// 通用下载函数（自动适配 Web / Android）
+async function downloadFile(content, filename, mimeType) {
+  // 在原生平台（Android App）使用 Filesystem API 写入下载目录
+  if (Capacitor.isNativePlatform()) {
+    try {
+      // 对于文本类型，需要转成 base64
+      let data = content
+      if (mimeType.includes('text') || mimeType.includes('json') || mimeType.includes('markdown')) {
+        // 将文本转为 base64
+        const encoder = new TextEncoder()
+        const bytes = encoder.encode(content)
+        data = btoa(String.fromCharCode(...bytes))
+      }
+
+      // 写入 Downloads 目录（Android 10+ 通过 MediaStore 自动处理）
+      const result = await Filesystem.writeFile({
+        path: filename,
+        data: data,
+        directory: Directory.Downloads,
+        encoding: mimeType.includes('text') || mimeType.includes('json') || mimeType.includes('markdown')
+          ? Encoding.UTF8
+          : undefined,
+        recursive: true,
+      })
+
+      return { success: true, native: true, uri: result.uri }
+    } catch (error) {
+      console.error('Filesystem write failed:', error)
+      // 降级：尝试通过分享方式保存
+      try {
+        const blob = new Blob([content], { type: mimeType + ';charset=utf-8' })
+        const base64 = await blobToBase64(blob)
+        await Filesystem.writeFile({
+          path: filename,
+          data: base64.split(',')[1], // 去掉 data:... 前缀
+          directory: Directory.Cache,
+          encoding: Encoding.UTF8,
+        })
+        return { success: true, native: true, fallback: true }
+      } catch (e2) {
+        return { success: false, error: e2.message }
+      }
+    }
+  }
+
+  // Web / PWA：使用 Blob + <a> 下载
   const charset = mimeType.includes('text') || mimeType.includes('markdown') ? ';charset=utf-8' : ''
-  
-  // 创建 Blob
   const blob = new Blob([content], { type: mimeType + charset })
   const url = URL.createObjectURL(blob)
 
-  // 使用临时 <a> 元素触发下载
   const a = document.createElement('a')
   a.href = url
   a.download = filename
@@ -350,10 +393,18 @@ function downloadFile(content, filename, mimeType) {
   a.click()
   document.body.removeChild(a)
 
-  // 延迟释放 URL 对象，确保下载完成
-  setTimeout(() => {
-    URL.revokeObjectURL(url)
-  }, 1000)
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+  return { success: true, native: false }
+}
+
+// Blob 转 base64 辅助函数
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onloadend = () => resolve(reader.result)
+    reader.onerror = reject
+    reader.readAsDataURL(blob)
+  })
 }
 
 // 导出为 Markdown

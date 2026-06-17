@@ -3,9 +3,13 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { getNoteById, saveNote, getTags, getTagName } from '../services/storage.js'
 import { generateTitle, isAIConfigured } from '../services/ai.js'
 
-// 将 content 中的图片 markdown 替换为占位符，用于显示
+// 将 content 中的图片 markdown 替换为占位符（带编号），用于显示
 function toDisplayContent(content) {
-  return content.replace(/!\[([^\]]*)\]\((data:image\/[^)]+)\)/g, '[图片]')
+  let index = 0
+  return content.replace(/!\[([^\]]*)\]\((data:image\/[^)]+)\)/g, () => {
+    index++
+    return `[图片${index}]`
+  })
 }
 
 // 将 displayContent 中的占位符还原为原始图片 markdown
@@ -268,12 +272,15 @@ export default function NoteEdit() {
     reader.onload = (event) => {
       const base64 = event.target.result
       const imageMarkdown = `\n\n![图片](${base64})\n\n`
+      
+      // 计算图片编号
+      const imgIndex = images.length + 1
+      const placeholder = `\n\n[图片${imgIndex}]\n\n`
 
       // 插入到光标位置
       if (textareaRef.current) {
         const start = textareaRef.current.selectionStart
         const end = textareaRef.current.selectionEnd
-        const placeholder = '\n\n[图片]\n\n'
         const newDisplay = displayContent.substring(0, start) + placeholder + displayContent.substring(end)
         const newContent = content.substring(0, start) + imageMarkdown + content.substring(end)
 
@@ -291,7 +298,7 @@ export default function NoteEdit() {
         }, 0)
       } else {
         // 如果无法获取光标位置，则附加到末尾
-        setDisplayContent((prev) => prev + '\n\n[图片]\n\n')
+        setDisplayContent((prev) => prev + placeholder)
         setContent((prev) => prev + imageMarkdown)
       }
     }
@@ -495,18 +502,27 @@ export default function NoteEdit() {
           )}
         </div>
 
-        {/* 图片预览 */}
+        {/* 正文编辑 */}
+        <textarea
+          ref={textareaRef}
+          value={displayContent}
+          onChange={handleContentChange}
+          placeholder="记录你的思考..."
+          className="w-full bg-transparent text-text-primary placeholder-text-secondary/30 outline-none resize-none min-h-[300px] leading-relaxed text-base"
+        />
+
+        {/* 图片预览 - 在 textarea 下方 */}
         {images.length > 0 && (
-          <div className="mb-4">
+          <div className="mt-4 mb-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-text-secondary text-xs">已插入图片 ({images.length})</span>
             </div>
-            <div className="flex gap-2 overflow-x-auto pb-2 -mx-5 px-5 scrollbar-hide">
+            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
               {images.map((img, index) => (
                 <div key={index} className="relative flex-shrink-0 group">
                   <img
                     src={img.src}
-                    alt={img.alt}
+                    alt={`图片${index + 1}`}
                     className="w-20 h-20 object-cover rounded-xl border border-dark-border/50"
                   />
                   <button
@@ -515,6 +531,7 @@ export default function NoteEdit() {
                   >
                     ×
                   </button>
+                  <p className="text-[10px] text-text-secondary/40 text-center mt-1">图片{index + 1}</p>
                 </div>
               ))}
             </div>
@@ -602,15 +619,6 @@ export default function NoteEdit() {
             </div>
           )}
         </div>
-
-        {/* 正文编辑 */}
-        <textarea
-          ref={textareaRef}
-          value={displayContent}
-          onChange={handleContentChange}
-          placeholder="记录你的思考..."
-          className="w-full bg-transparent text-text-primary placeholder-text-secondary/30 outline-none resize-none min-h-[300px] leading-relaxed text-base"
-        />
       </div>
     </div>
   )

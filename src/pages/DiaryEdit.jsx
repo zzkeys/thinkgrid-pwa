@@ -256,20 +256,19 @@ export default function DiaryEdit() {
           <span className="text-xs text-text-secondary/40">{charCount > 0 ? `共${charCount}字` : ''}</span>
         </div>
 
-        {/* 工具图标 */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-6">
+        {/* 工具图标 - 分两组显示 */}
+        <div className="flex items-center justify-around">
+          {/* 第一组：媒体 */}
+          <div className="flex items-center gap-8 pr-6 border-r border-dark-border/30">
             {/* 相机 */}
             <button
               onClick={handleCamera}
               className="flex flex-col items-center gap-1 group"
             >
-              <span                 className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl transition-all ${
-                  false ? 'bg-coral-light/20' : 'bg-dark-card hover:bg-dark-card/80'
-                }`}>
+              <span className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl bg-dark-card hover:bg-coral-light/15 transition-all active:scale-95">
                 📷
               </span>
-              <span className="text-[10px] text-text-secondary/50">相机</span>
+              <span className="text-[10px] text-text-secondary/50">拍照</span>
             </button>
 
             {/* 相册 */}
@@ -283,20 +282,23 @@ export default function DiaryEdit() {
               }}
               className="flex flex-col items-center gap-1 group"
             >
-                <span className="w-10 h-10 rounded-xl flex items-center justify-center text-xl bg-dark-card hover:bg-dark-card/80 transition-all">
+              <span className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl bg-dark-card hover:bg-blue-500/15 transition-all active:scale-95">
                 🖼️
               </span>
               <span className="text-[10px] text-text-secondary/50">相册</span>
             </button>
+          </div>
 
+          {/* 第二组：记录属性 */}
+          <div className="flex items-center gap-8 pl-6">
             {/* 天气 */}
             <div className="relative">
               <button
                 onClick={() => { setShowWeatherPicker(!showWeatherPicker); setShowMoodPicker(false) }}
-                className={`flex flex-col items-center gap-1 ${weather ? '' : ''}`}
+                className="flex flex-col items-center gap-1"
               >
-                <span                 className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl transition-all ${
-                  weather ? 'bg-blue-500/20' : 'bg-dark-card hover:bg-dark-card/80'
+                <span className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl transition-all ${
+                  weather ? 'bg-blue-500/15 ring-1 ring-blue-400/30' : 'bg-dark-card hover:bg-yellow-500/15'
                 }`}>
                   {weather ? WEATHER_OPTIONS.find(w => w.id === weather)?.icon : '☁️'}
                 </span>
@@ -339,14 +341,14 @@ export default function DiaryEdit() {
                 onClick={() => { setShowMoodPicker(!showMoodPicker); setShowWeatherPicker(false) }}
                 className="flex flex-col items-center gap-1"
               >
-                <span                 className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl transition-all ${
-                  mood ? '' : 'bg-dark-card hover:bg-dark-card/80'
+                <span className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl transition-all ${
+                  mood ? 'ring-1' : 'bg-dark-card hover:bg-pink-500/15'
                 }`}
-                style={mood ? { backgroundColor: MOOD_OPTIONS.find(m => m.id === mood)?.color + '20' } : {}}
+                style={mood ? { backgroundColor: MOOD_OPTIONS.find(m => m.id === mood)?.color + '20', borderColor: MOOD_OPTIONS.find(m => m.id === mood)?.color + '40' } : {}}
                 >
                   {mood ? MOOD_OPTIONS.find(m => m.id === mood)?.emoji : '💛'}
                 </span>
-                <span className={`text-[10px] ${mood ? 'opacity-90' : 'text-text-secondary/50'}`}
+                <span className={`text-[10px]`}
                   style={mood ? { color: MOOD_OPTIONS.find(m => m.id === mood)?.color } : {}}
                 >
                   {mood ? MOOD_OPTIONS.find(m => m.id === mood)?.label : '心情'}

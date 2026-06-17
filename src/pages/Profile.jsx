@@ -28,7 +28,12 @@ export default function Profile() {
   const [tempCustomPrompt, setTempCustomPrompt] = useState('')
   const [showModelSelect, setShowModelSelect] = useState(false)
   const [exportStatus, setExportStatus] = useState(null)
-  const [pendingExport, setPendingExport] = useState(null) // { format: 'json'|'md'|'txt', type: 'all'|'notes'|'diaries'|'todos' }
+  
+  // 新增：导出相关状态
+  const [exportScope, setExportScope] = useState('all')
+  const [exportFormat, setExportFormat] = useState('json')
+  const [exporting, setExporting] = useState(false)
+  const [exportHistory, setExportHistory] = useState([])
 
   useEffect(() => {
     loadData()
@@ -111,26 +116,49 @@ export default function Profile() {
 
   // 点击导出按钮，先显示类型选择
   const handleExportClick = (format) => {
-    setPendingExport({ format, type: null })
+    setExportFormat(format)
+    // 直接打开数据管理弹窗
+    setShowDataManage(true)
   }
 
-  // 选择类型后执行导出
-  const doExport = (format, type) => {
-    setPendingExport(null)
+  // 开始导出
+  const handleStartExport = async () => {
+    setExporting(true)
     setExportStatus(null)
-    let result
-    if (format === 'json') result = exportToJSON(type)
-    else if (format === 'md') result = exportToMarkdown(type)
-    else if (format === 'txt') result = exportToText(type)
+    
+    try {
+      let result
+      if (exportFormat === 'json') result = exportToJSON(exportScope)
+      else if (exportFormat === 'md') result = exportToMarkdown(exportScope)
+      else if (exportFormat === 'txt') result = exportToText(exportScope)
 
-    if (result && result.success) {
-      const typeLabel = { all: '完整备份', notes: '笔记', diaries: '日记', todos: '待办' }[type] || ''
-      const formatName = format === 'json' ? 'JSON' : format === 'md' ? 'Markdown' : '纯文本'
-      setExportStatus({ type: 'success', message: `${formatName} · ${typeLabel} 导出成功！` })
-      setTimeout(() => setExportStatus(null), 3000)
-    } else {
-      setExportStatus({ type: 'error', message: `导出失败：${result?.error || '未知错误'}` })
+      if (result && result.success) {
+        const typeLabel = { all: '完整备份', notes: '笔记', diaries: '日记', todos: '待办' }[exportScope] || ''
+        const formatName = exportFormat === 'json' ? 'JSON' : exportFormat === 'md' ? 'Markdown' : '纯文本'
+        const filename = `thinkgrid_${exportScope}_${new Date().toISOString().slice(0, 10)}.${exportFormat === 'json' ? 'json' : exportFormat === 'md' ? 'md' : 'txt'}`
+        
+        // 添加到导出历史
+        const newHistoryItem = {
+          filename: filename,
+          time: new Date().toLocaleString('zh-CN'),
+          path: result.path || (result.native ? 'Documents/ThinkGrid/' + filename : '浏览器下载')
+        }
+        setExportHistory(prev => [newHistoryItem, ...prev].slice(0, 20)) // 最多保留20条
+        
+        setExportStatus({ 
+          type: 'success', 
+          message: `${formatName} · ${typeLabel} 导出成功！已保存到 ${newHistoryItem.path}` 
+        })
+        setTimeout(() => setExportStatus(null), 4000)
+      } else {
+        setExportStatus({ type: 'error', message: `导出失败：${result?.error || '未知错误'}` })
+        setTimeout(() => setExportStatus(null), 4000)
+      }
+    } catch (error) {
+      setExportStatus({ type: 'error', message: `导出失败：${error.message}` })
       setTimeout(() => setExportStatus(null), 4000)
+    } finally {
+      setExporting(false)
     }
   }
 
@@ -509,72 +537,152 @@ export default function Profile() {
         </div>
       )}
 
-      {/* 数据管理弹窗 */}
+      {/* 数据管理弹窗 - 新版导出页面 */}
       {showDataManage && (
         <div className="fixed inset-0 bg-black/60 flex items-end justify-center z-50" onClick={() => setShowDataManage(false)}>
-          <div className="bg-dark-card rounded-t-3xl w-full max-w-md p-6 animate-fade-in max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-text-primary font-semibold text-lg mb-5">数据管理</h3>
-
-            {/* 导出数据 */}
-            <div className="mb-6">
-              <label className="text-text-secondary text-xs mb-2 block">导出数据</label>
-
-              {/* 导出状态提示 */}
-              {exportStatus && (
-                <div className={`rounded-xl p-3 mb-3 text-sm flex items-center gap-2 animate-fade-in ${
-                  exportStatus.type === 'success'
-                    ? 'bg-[#1A3A2F]/80 text-[#4ADE80] border border-[#4ADE80]/30'
-                    : 'bg-[#3A1A1A]/80 text-red-400 border border-red-400/30'
-                }`}>
-                  <span>{exportStatus.type === 'success' ? '✅' : '❌'}</span>
-                  <span>{exportStatus.message}</span>
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <button
-                  onClick={() => handleExportClick('json')}
-                  className="w-full py-3 rounded-xl bg-dark-bg text-text-primary text-sm font-medium border border-dark-border/50 hover:border-coral-light/30 transition-all flex items-center justify-center gap-2"
-                >
-                  <span>📦</span> 导出为 JSON
-                </button>
-                <button
-                  onClick={() => handleExportClick('md')}
-                  className="w-full py-3 rounded-xl bg-dark-bg text-text-primary text-sm font-medium border border-dark-border/50 hover:border-coral-light/30 transition-all flex items-center justify-center gap-2"
-                >
-                  <span>📝</span> 导出为 Markdown
-                </button>
-                <button
-                  onClick={() => handleExportClick('txt')}
-                  className="w-full py-3 rounded-xl bg-dark-bg text-text-primary text-sm font-medium border border-dark-border/50 hover:border-coral-light/30 transition-all flex items-center justify-center gap-2"
-                >
-                  <span>📄</span> 导出为纯文本
-                </button>
-              </div>
+          <div className="bg-dark-bg rounded-t-3xl w-full max-w-md p-5 animate-fade-in max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            {/* 顶部导航 */}
+            <div className="flex items-center justify-between mb-5">
+              <button onClick={() => setShowDataManage(false)} className="text-text-secondary text-lg hover:text-text-primary transition-colors w-8 h-8 flex items-center justify-center rounded-full hover:bg-dark-card/50">
+                ←
+              </button>
+              <h3 className="text-text-primary font-semibold text-lg">数据导出</h3>
+              <div className="w-6"></div> {/* 占位保持居中 */}
             </div>
 
-            {/* 导入数据 */}
-            <div className="mb-4">
-              <label className="text-text-secondary text-xs mb-2 block">导入数据</label>
+            {/* 导出配置卡片 */}
+            <div className="bg-dark-card rounded-2xl p-5 border border-dark-border/50 mb-4">
+              <h4 className="text-text-primary font-semibold text-base mb-4">导出配置</h4>
+              
+              {/* 导出范围 */}
+              <div className="mb-5">
+                <label className="text-text-secondary text-xs mb-2 block font-medium">导出范围</label>
+                <div className="flex gap-2">
+                  {[
+                    { id: 'all', label: '全部' },
+                    { id: 'notes', label: '笔记' },
+                    { id: 'diaries', label: '日记' },
+                    { id: 'todos', label: '待办' },
+                  ].map(item => (
+                    <button
+                      key={item.id}
+                      onClick={() => setExportScope(item.id)}
+                      className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                        exportScope === item.id 
+                          ? 'bg-coral-light text-white shadow-md shadow-coral-light/20' 
+                          : 'bg-dark-bg text-text-secondary border border-dark-border/50 hover:border-dark-border'
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 时间范围（简化：显示固定文字） */}
+              <div className="mb-5">
+                <label className="text-text-secondary text-xs mb-2 block font-medium">时间范围</label>
+                <div className="bg-dark-bg rounded-xl px-4 py-3 border border-dark-border/30">
+                  <p className="text-text-primary text-sm">全部时间</p>
+                  <p className="text-text-secondary/40 text-[11px] mt-0.5">导出所有数据</p>
+                </div>
+              </div>
+
+              {/* 导出类型 */}
+              <div className="mb-5">
+                <label className="text-text-secondary text-xs mb-2 block font-medium">导出类型</label>
+                <div className="flex gap-2">
+                  {[
+                    { id: 'json', label: 'JSON' },
+                    { id: 'md', label: 'Markdown' },
+                    { id: 'txt', label: 'Text' },
+                  ].map(item => (
+                    <button
+                      key={item.id}
+                      onClick={() => setExportFormat(item.id)}
+                      className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                        exportFormat === item.id 
+                          ? 'bg-coral-light text-white shadow-md shadow-coral-light/20' 
+                          : 'bg-dark-bg text-text-secondary border border-dark-border/50 hover:border-dark-border'
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 开始导出按钮 */}
+              <button
+                onClick={handleStartExport}
+                disabled={exporting}
+                className="w-full py-3.5 rounded-xl bg-dark-card text-text-primary font-medium text-base border border-dark-border/50 hover:border-coral-light/30 transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
+              >
+                {exporting ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-coral-light/30 border-t-coral-light rounded-full animate-spin" />
+                    导出中...
+                  </>
+                ) : (
+                  <>↓ 开始导出</>
+                )}
+              </button>
+            </div>
+
+            {/* 导出文件列表 */}
+            <div className="bg-dark-card rounded-2xl p-5 border border-dark-border/50">
+              <h4 className="text-text-primary font-semibold text-base mb-1">导出文件列表</h4>
+              <p className="text-text-secondary/40 text-xs mb-3">
+                当前共 {exportHistory.length} 个导出文件
+              </p>
+              
+              {exportHistory.length === 0 ? (
+                <div className="text-center py-6">
+                  <p className="text-text-secondary/40 text-sm">还没有导出文件，先选择范围并执行一次导出。</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {exportHistory.map((item, i) => (
+                    <div key={i} className="flex items-center justify-between bg-dark-bg rounded-xl px-4 py-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-text-primary text-sm truncate">{item.filename}</p>
+                        <p className="text-text-secondary/40 text-[11px]">{item.time} · {item.path}</p>
+                      </div>
+                      <span className="text-green-400 text-xs ml-2 flex-shrink-0">✓ 已保存</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* 导出状态提示 */}
+            {exportStatus && (
+              <div className={`rounded-xl p-3 mt-4 text-sm flex items-center gap-2 animate-fade-in ${
+                exportStatus.type === 'success'
+                  ? 'bg-[#1A3A2F]/80 text-[#4ADE80] border border-[#4ADE80]/30'
+                  : 'bg-[#3A1A1A]/80 text-red-400 border border-red-400/30'
+              }`}>
+                <span>{exportStatus.type === 'success' ? '✅' : '❌'}</span>
+                <span>{exportStatus.message}</span>
+              </div>
+            )}
+
+            {/* 导入数据区域（保留在底部） */}
+            <div className="mt-5 pt-4 border-t border-dark-border/30">
+              <label className="text-text-secondary text-xs mb-2 block font-medium">导入数据</label>
               <button
                 onClick={() => fileInputRef.current?.click()}
                 className="w-full py-3 rounded-xl bg-dark-card text-text-primary text-sm font-medium border border-dark-border/50 hover:border-coral-light/30 transition-all flex items-center justify-center gap-2"
               >
                 <span>📥</span> 从 JSON 备份导入
               </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".json"
-                onChange={handleFileSelect}
-                className="hidden"
-              />
+              <input ref={fileInputRef} type="file" accept=".json" onChange={handleFileSelect} className="hidden" />
               <p className="text-text-secondary/40 text-[10px] mt-1">支持导入之前导出的 JSON 备份文件</p>
             </div>
 
             {/* 导入结果 */}
             {importStatus && (
-              <div className={`rounded-xl p-3 mb-4 text-xs ${
+              <div className={`rounded-xl p-3 mt-3 text-xs ${
                 importStatus.type === 'success'
                   ? 'bg-[#1A3A2F] text-[#4ADE80] border border-[#4ADE80]/20'
                   : 'bg-[#3A1A1A] text-red-400 border border-red-400/20'
@@ -582,52 +690,6 @@ export default function Profile() {
                 {importStatus.type === 'success' ? '✅ ' : '❌ '}{importStatus.message}
               </div>
             )}
-
-            {/* 关闭按钮 */}
-            <button
-              onClick={() => setShowDataManage(false)}
-              className="w-full py-3 rounded-xl bg-dark-border/30 text-text-primary font-medium text-sm mt-2"
-            >
-              关闭
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* 导出类型选择弹窗 */}
-      {pendingExport && (
-        <div className="fixed inset-0 bg-black/60 flex items-end justify-center z-[60]" onClick={() => setPendingExport(null)}>
-          <div className="bg-dark-card rounded-t-3xl w-full max-w-md p-6 animate-fade-in" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-text-primary font-semibold text-lg">选择导出范围</h3>
-              <button
-                onClick={() => setPendingExport(null)}
-                className="w-8 h-8 rounded-full bg-dark-card flex items-center justify-center text-text-secondary hover:text-text-primary transition-colors"
-              >
-                ✕
-              </button>
-            </div>
-            <p className="text-text-secondary/60 text-xs mb-4">选择要导出的数据类型</p>
-            <div className="space-y-2.5">
-              {[
-                { id: 'all', label: '全部', icon: '📦', desc: '笔记 + 日记 + 待办' },
-                { id: 'notes', label: '笔记', icon: '📝', desc: '仅普通笔记' },
-                { id: 'diaries', label: '日记', icon: '📔', desc: '仅日记记录' },
-                { id: 'todos', label: '待办清单', icon: '⏳', desc: '仅待办事项' },
-              ].map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => handleTypeSelect(item.id)}
-                  className="w-full py-3.5 px-4 rounded-2xl bg-dark-bg hover:bg-dark-card/80 transition-all text-left flex items-center gap-3 border border-dark-border/30 hover:border-coral-light/20"
-                >
-                  <span className="text-xl">{item.icon}</span>
-                  <div>
-                    <p className="text-text-primary text-sm font-medium">{item.label}</p>
-                    <p className="text-text-secondary/40 text-[11px]">{item.desc}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
           </div>
         </div>
       )}

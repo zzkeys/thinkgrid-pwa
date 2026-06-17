@@ -357,43 +357,41 @@ export function exportToJSON(type = 'all') {
 
 // 通用下载函数（自动适配 Web / Android）
 async function downloadFile(content, filename, mimeType) {
-  // 在原生平台（Android App）使用 Filesystem API 写入下载目录
+  // 在原生平台（Android App）使用 Filesystem API 写入 Documents/ThinkGrid 目录
   if (Capacitor.isNativePlatform()) {
     try {
-      // 对于文本类型，需要转成 base64
+      // 对于文本内容转 base64
       let data = content
       if (mimeType.includes('text') || mimeType.includes('json') || mimeType.includes('markdown')) {
-        // 将文本转为 base64
         const encoder = new TextEncoder()
         const bytes = encoder.encode(content)
         data = btoa(String.fromCharCode(...bytes))
       }
 
-      // 写入 Downloads 目录（Android 10+ 通过 MediaStore 自动处理）
+      // 写入 Documents/ThinkGrid 目录（Android 10+ 通过 MediaStore 自动处理）
       const result = await Filesystem.writeFile({
-        path: filename,
+        path: `ThinkGrid/${filename}`,
         data: data,
-        directory: Directory.Downloads,
-        encoding: mimeType.includes('text') || mimeType.includes('json') || mimeType.includes('markdown')
-          ? Encoding.UTF8
-          : undefined,
-        recursive: true,
+        directory: Directory.Documents,
+        encoding: Encoding.UTF8,
+        recursive: true, // 自动创建 ThinkGrid 目录
       })
 
-      return { success: true, native: true, uri: result.uri }
+      return { success: true, native: true, uri: result.uri, path: `Documents/ThinkGrid/${filename}` }
     } catch (error) {
-      console.error('Filesystem write failed:', error)
-      // 降级：尝试通过分享方式保存
+      console.error('Native export failed:', error)
+      // 降级：尝试写入 Cache 目录
       try {
         const blob = new Blob([content], { type: mimeType + ';charset=utf-8' })
         const base64 = await blobToBase64(blob)
         await Filesystem.writeFile({
-          path: filename,
-          data: base64.split(',')[1], // 去掉 data:... 前缀
+          path: `ThinkGrid/${filename}`,
+          data: base64.split(',')[1],
           directory: Directory.Cache,
           encoding: Encoding.UTF8,
+          recursive: true,
         })
-        return { success: true, native: true, fallback: true }
+        return { success: true, native: true, fallback: true, path: `Cache/ThinkGrid/${filename}` }
       } catch (e2) {
         return { success: false, error: e2.message }
       }

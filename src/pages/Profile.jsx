@@ -125,7 +125,7 @@ export default function Profile() {
   const handleStartExport = async () => {
     setExporting(true)
     setExportStatus(null)
-    
+
     try {
       let result
       if (exportFormat === 'json') result = exportToJSON(exportScope)
@@ -136,20 +136,31 @@ export default function Profile() {
         const typeLabel = { all: '完整备份', notes: '笔记', diaries: '日记', todos: '待办' }[exportScope] || ''
         const formatName = exportFormat === 'json' ? 'JSON' : exportFormat === 'md' ? 'Markdown' : '纯文本'
         const filename = `thinkgrid_${exportScope}_${new Date().toISOString().slice(0, 10)}.${exportFormat === 'json' ? 'json' : exportFormat === 'md' ? 'md' : 'txt'}`
-        
+
+        // 构建更清晰的位置描述
+        let locationText = result.path || '未知位置'
+        if (result.method === 'blob-download') {
+          locationText = '浏览器下载目录（查看"下载"文件夹或通知栏）'
+        } else if (result.fallback) {
+          locationText = `${result.path}（使用了备用方案）`
+        } else if (result.native) {
+          locationText = `手机存储 → ${result.path}`
+        }
+
         // 添加到导出历史
         const newHistoryItem = {
           filename: filename,
           time: new Date().toLocaleString('zh-CN'),
-          path: result.path || (result.native ? 'Documents/ThinkGrid/' + filename : '浏览器下载')
+          path: locationText,
+          method: result.method || 'unknown',
         }
         setExportHistory(prev => [newHistoryItem, ...prev].slice(0, 20)) // 最多保留20条
-        
-        setExportStatus({ 
-          type: 'success', 
-          message: `${formatName} · ${typeLabel} 导出成功！已保存到 ${newHistoryItem.path}` 
+
+        setExportStatus({
+          type: 'success',
+          message: `✅ 导出成功！${formatName} · ${typeLabel}\n📂 ${locationText}`
         })
-        setTimeout(() => setExportStatus(null), 4000)
+        setTimeout(() => setExportStatus(null), 6000)  // 延长显示时间让用户看清楚
       } else {
         setExportStatus({ type: 'error', message: `导出失败：${result?.error || '未知错误'}` })
         setTimeout(() => setExportStatus(null), 4000)
@@ -540,7 +551,7 @@ export default function Profile() {
       {/* 数据管理弹窗 - 新版导出页面 */}
       {showDataManage && (
         <div className="fixed inset-0 bg-black/60 flex items-end justify-center z-50" onClick={() => setShowDataManage(false)}>
-          <div className="bg-dark-bg rounded-t-3xl w-full max-w-md p-5 animate-fade-in max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-dark-bg rounded-t-3xl w-full max-w-md p-5 animate-fade-in max-h-[82vh] overflow-y-auto pb-8" onClick={(e) => e.stopPropagation()}>
             {/* 顶部导航 */}
             <div className="flex items-center justify-between mb-5">
               <button onClick={() => setShowDataManage(false)} className="text-text-secondary text-lg hover:text-text-primary transition-colors w-8 h-8 flex items-center justify-center rounded-full hover:bg-dark-card/50">

@@ -356,49 +356,110 @@ export function exportToJSON(type = 'all') {
 }
 
 // 通用下载函数（自动适配 Web / Android）
+// 采用多级降级策略确保在 Android 上可靠导出
 async function downloadFile(content, filename, mimeType) {
   // 在原生平台（Android App）使用 Filesystem API 写入 Documents/ThinkGrid 目录
   if (Capacitor.isNativePlatform()) {
     try {
-      // 对于文本内容转 base64
-      let data = content
-      if (mimeType.includes('text') || mimeType.includes('json') || mimeType.includes('markdown')) {
-        const encoder = new TextEncoder()
-        const bytes = encoder.encode(content)
-        data = btoa(String.fromCharCode(...bytes))
-      }
-
-      // 写入 Documents/ThinkGrid 目录（Android 10+ 通过 MediaStore 自动处理）
+      // 方案1：直接用 UTF-8 编码写字符串数据
       const result = await Filesystem.writeFile({
         path: `ThinkGrid/${filename}`,
-        data: data,
+        data: content,  // 直接传字符串，不用转 base64
         directory: Directory.Documents,
         encoding: Encoding.UTF8,
-        recursive: true, // 自动创建 ThinkGrid 目录
+        recursive: true,
       })
 
-      return { success: true, native: true, uri: result.uri, path: `Documents/ThinkGrid/${filename}` }
-    } catch (error) {
-      console.error('Native export failed:', error)
-      // 降级：尝试写入 Cache 目录
+      return {
+        success: true,
+        native: true,
+        uri: result.uri,
+        path: `Documents/ThinkGrid/${filename}`,
+        method: 'filesystem-utf8'
+      }
+    } catch (primaryError) {
+      console.error('[ThinkGrid] Primary export failed:', primaryError.message)
+
+      // 方案2：尝试用 base64 + UTF8 编码
       try {
-        const blob = new Blob([content], { type: mimeType + ';charset=utf-8' })
-        const base64 = await blobToBase64(blob)
-        await Filesystem.writeFile({
+        const encoder = new TextEncoder()
+        const bytes = encoder.encode(content)
+        const base64Data = btoa(String.fromCharCode(...bytes))
+
+        const result = await Filesystem.writeFile({
           path: `ThinkGrid/${filename}`,
-          data: base64.split(',')[1],
-          directory: Directory.Cache,
-          encoding: Encoding.UTF8,
+          data: base64Data,
+          directory: Directory.Documents,
+          encoding: Encoding.UTF8,  // base64 字符串作为 UTF-8 写入
           recursive: true,
         })
-        return { success: true, native: true, fallback: true, path: `Cache/ThinkGrid/${filename}` }
-      } catch (e2) {
-        return { success: false, error: e2.message }
+        return {
+          success: true,
+          native: true,
+          uri: result.uri,
+          path: `Documents/ThinkGrid/${filename}`,
+          method: 'filesystem-base64'
+        }
+      } catch (secondaryError) {
+        console.error('[ThinkGrid] Secondary export failed:', secondaryError.message)
+
+        // 方案3：尝试写入外部存储（Download 目录）
+        try {
+          const base64Data = btoa(unescape(encodeURIComponent(content)))
+          await Filesystem.writeFile({
+            path: `ThinkGrid/${filename}`,
+            data: base64Data,
+            directory: Directory.ExternalStorage,
+            encoding: Encoding.UTF8,
+            recursive: true,
+          })
+          return {
+            success: true,
+            native: true,
+            fallback: true,
+            path: `ExternalStorage/ThinkGrid/${filename}`,
+            method: 'external-storage'
+          }
+        } catch (thirdError) {
+          console.error('[ThinkGrid] All export methods failed:', thirdError.message)
+
+          // 方案4：最终降级 - 使用 Web Blob 下载（WebView 中可能触发系统下载管理器）
+          try {
+            const blob = new Blob([content], { type: mimeType + ';charset=utf-8' })
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+            a.download = filename
+            a.style.display = 'none'
+            document.body.appendChild(a)
+            a.click()
+            document.body.removeChild(a)
+            setTimeout(() => URL.revokeObjectURL(url), 1000)
+
+            return {
+              success: true,
+              native: false,
+              fallback: true,
+              path: '浏览器下载',
+              method: 'blob-download'
+            }
+          } catch (finalError) {
+            return {
+              success: false,
+              error: `所有导出方式均失败: ${finalError.message} (原始: ${primaryError.message})`,
+              details: {
+                primary: primaryError.message,
+                secondary: secondaryError.message,
+                third: thirdError.message,
+              }
+            }
+          }
+        }
       }
     }
   }
 
-  // Web / PWA：使用 Blob + <a> 下载
+  // Web / PWA：使用 Blob + <a> 下载（保持不变）
   const charset = mimeType.includes('text') || mimeType.includes('markdown') ? ';charset=utf-8' : ''
   const blob = new Blob([content], { type: mimeType + charset })
   const url = URL.createObjectURL(blob)
@@ -413,7 +474,7 @@ async function downloadFile(content, filename, mimeType) {
   document.body.removeChild(a)
 
   setTimeout(() => URL.revokeObjectURL(url), 1000)
-  return { success: true, native: false }
+  return { success: true, native: false, method: 'web-blob' }
 }
 
 // Blob 转 base64 辅助函数
